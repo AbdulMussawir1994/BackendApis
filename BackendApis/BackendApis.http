@@ -1,0 +1,11 @@
+@BackendApis_HostAddress = http://localhost:5045
+
+### Login User (POST)
+POST {{BackendApis_HostAddress}}/api/v2/User/LoginUser
+Content-Type: application/json
+Accept: application/json
+x-api-version: 2.0
+{
+  "cnic": "4210148778829",
+  "password": "948898"
+}

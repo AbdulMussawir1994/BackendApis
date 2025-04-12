@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cryptography\Cryptography.csproj" />
+    <ProjectReference Include="..\DAL.DatabaseLayer\DAL.DatabaseLayer.csproj" />
+    <ProjectReference Include="..\DAL.ServiceLayer\DAL.ServiceLayer.csproj" />
+  </ItemGroup>
+
+</Project>
