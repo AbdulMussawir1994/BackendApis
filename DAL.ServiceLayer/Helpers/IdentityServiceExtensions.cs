@@ -36,7 +36,7 @@ public static class IdentityServiceExtensions
                 DefaultLockoutTimeSpan = TimeSpan.FromMinutes(configuration.GetValue<int>("LockoutSettings:DefaultLockoutInMinutes"))
             };
 
-        })
+        }).AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<WebContextDb>()
         .AddDefaultTokenProviders();
 

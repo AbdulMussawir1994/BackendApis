@@ -98,26 +98,31 @@ public static class DependencyInjectionSetup
         });
 
         // 🔐 JWT Authentication
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+        services.AddAuthentication(option =>
+        {
+            option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            option.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            var key = Encoding.ASCII.GetBytes(configuration["JWTKey:Secret"]);
+
+            options.SaveToken = true;
+            options.RequireHttpsMetadata = true;
+
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                var key = Encoding.ASCII.GetBytes(configuration["JWTKey:Secret"]);
-
-                options.SaveToken = true;
-                options.RequireHttpsMetadata = true;
-
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidIssuer = configuration["JWTKey:ValidIssuer"],
-                    ValidAudience = configuration["JWTKey:ValidAudience"],
-                    RequireExpirationTime = true,
-                    ClockSkew = TimeSpan.Zero
-                };
-            });
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidIssuer = configuration["JWTKey:ValidIssuer"],
+                ValidAudience = configuration["JWTKey:ValidAudience"],
+                RequireExpirationTime = true,
+                ClockSkew = TimeSpan.Zero
+            };
+        });
 
         // 🧩 Dependency Injection (DI)
         services.AddScoped<IAuthRepository, AuthRepository>();
@@ -190,53 +195,75 @@ public static class DependencyInjectionSetup
         //  });
 
         // 🚦 Rate Limiting
+
+
         services.AddRateLimiter(options =>
         {
-            // Global Partitioned Rate Limiter for all requests (authenticated + anonymous)
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
-                // Use authenticated user or fallback to IP address
-                var partitionKey = context.User?.Identity?.IsAuthenticated == true
-                    ? $"user:{context.User.Identity.Name}"
-                    : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+                // Partition by IP address to isolate abuse
+                var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-                return RateLimitPartition.GetSlidingWindowLimiter(partitionKey, _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit = 5, // Total requests allowed per window
-                    Window = TimeSpan.FromSeconds(60), // Duration of the sliding window
-                    SegmentsPerWindow = 1, // Number of segments (better smoothing)
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit = 5 // Allow small queue
-                });
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: ipAddress,
+                    factory: key => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10, // max requests allowed
+                        Window = TimeSpan.FromMinutes(1), // per minute
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 5 // buffer extra burst
+                    });
             });
-
-            // Optional: Use Token Bucket (can be swapped with SlidingWindow above)
-            // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            // {
-            //     var key = context.User?.Identity?.IsAuthenticated == true
-            //         ? $"user:{context.User.Identity.Name}"
-            //         : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-
-            //     return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
-            //     {
-            //         TokenLimit = 100,
-            //         TokensPerPeriod = 20,
-            //         ReplenishmentPeriod = TimeSpan.FromSeconds(10),
-            //         AutoReplenishment = true,
-            //         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            //         QueueLimit = 5
-            //     });
-            // });
-
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
             options.OnRejected = async (context, token) =>
             {
-                context.HttpContext.Response.Headers["Retry-After"] = "60";
-                context.HttpContext.Response.ContentType = "application/json";
-                await context.HttpContext.Response.WriteAsync("{\"message\": \"Too many requests. Please wait and try again.\"}", token);
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                context.HttpContext.Response.Headers.RetryAfter = "60"; // optional Retry-After header
+                await context.HttpContext.Response.WriteAsync("Too many requests. Please try again after a minute.", token);
             };
         });
+
+        ///[EnableRateLimiting("sliding")] --> use ActionMethod
+        //services.AddRateLimiter(options =>
+        //{
+        //    options.AddSlidingWindowLimiter("sliding", sliding =>
+        //    {
+        //        sliding.PermitLimit = 5;
+        //        sliding.Window = TimeSpan.FromSeconds(10);
+        //        sliding.SegmentsPerWindow = 2;
+        //        sliding.QueueLimit = 2;
+        //        sliding.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        //    });
+        //});
+
+        // Register Rate Limiter globally
+        //services.AddRateLimiter(options =>
+        //{
+        //    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        //    {
+        //        // Use IP address or User Identity Name as a partition key
+        //        var key = context.User.Identity?.IsAuthenticated == true
+        //            ? context.User.Identity.Name ?? "authenticated"
+        //            : context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        //        return RateLimitPartition.GetSlidingWindowLimiter(key, _ => new SlidingWindowRateLimiterOptions
+        //        {
+        //            PermitLimit = 10, // Max requests allowed in a window
+        //            Window = TimeSpan.FromSeconds(30),
+        //            SegmentsPerWindow = 3, // smoother distribution
+        //            QueueLimit = 2,
+        //            QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+        //        });
+        //    });
+
+        //    options.RejectionStatusCode = 429;
+        //    options.OnRejected = async (context, token) =>
+        //    {
+        //        context.HttpContext.Response.Headers["Retry-After"] = "30";
+        //        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        //        await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", token);
+        //    };
+        //});
 
         // 🌐 CORS
         services.AddCors(options =>
