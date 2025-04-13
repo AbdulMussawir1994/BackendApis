@@ -1,16 +1,24 @@
-﻿namespace DAL.ServiceLayer.Models;
+﻿using DAL.ServiceLayer.Utilities;
+
+namespace DAL.ServiceLayer.Models;
 
 public class MobileResponse<T>
 {
+    public readonly ConfigHandler _configHandler;
+    public readonly string _serviceName;
+
+    public MobileResponse(ConfigHandler configHandler, string serviceName)
+    {
+        _configHandler = configHandler;
+        _serviceName = serviceName;
+        LogId = configHandler?.LogId;
+        RequestDateTime = configHandler?.RequestedDateTime;
+    }
+
     public string LogId { get; set; }
     public Status Status { get; set; } = Status.Error();
     public T Content { get; set; }
     public string RequestDateTime { get; set; } = DateTime.UtcNow.ToString("o");
-
-    public MobileResponse(string logId = null)
-    {
-        LogId = logId;
-    }
 
     public MobileResponse<T> SetError(string code, string message, T content = default)
     {

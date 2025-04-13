@@ -5,6 +5,7 @@ using DAL.DatabaseLayer.ViewModels.AuthModels;
 using DAL.RepositoryLayer.IDataAccess;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.Models;
+using DAL.ServiceLayer.Utilities;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ namespace DAL.RepositoryLayer.Repositories
 {
     public class AuthRepository : IAuthRepository
     {
+        private readonly ConfigHandler _configHandler;
         private readonly ILogger<AuthRepository> _logger;
         private readonly UserManager<AppUser> _userManager;
         private readonly AesGcmEncryption _aesGcmEncryption;
@@ -29,7 +31,8 @@ namespace DAL.RepositoryLayer.Repositories
 
         public AuthRepository(ILogger<AuthRepository> logger, UserManager<AppUser> userManager,
                                                     AesGcmEncryption aesGcmEncryption, IConfiguration configuration,
-                                                    IDataBaseAccess dataBaseAccess, IValidator<RegisterViewModel> validator)
+                                                    IDataBaseAccess dataBaseAccess, IValidator<RegisterViewModel> validator,
+                                                    ConfigHandler configHandler)
         {
             _logger = logger;
             _userManager = userManager;
@@ -37,10 +40,11 @@ namespace DAL.RepositoryLayer.Repositories
             _configuration = configuration;
             _dataBaseAccess = dataBaseAccess;
             _validator = validator;
+            _configHandler = configHandler;
         }
         public async Task<MobileResponse<LoginResponseModel>> LoginUser(LoginViewModel model, CancellationToken cancellationToken)
         {
-            var response = new MobileResponse<LoginResponseModel>();
+            var response = new MobileResponse<LoginResponseModel>(_configHandler, "user");
 
             var user = await _userManager.Users.AsNoTracking().FirstOrDefaultAsync(x => x.CNIC == model.CNIC, cancellationToken);
 
@@ -76,7 +80,7 @@ namespace DAL.RepositoryLayer.Repositories
 
         public async Task<MobileResponse<RegisterViewDto>> RegisterUser(RegisterViewModel model, CancellationToken cancellationToken)
         {
-            var response = new MobileResponse<RegisterViewDto>();
+            var response = new MobileResponse<RegisterViewDto>(_configHandler, "user");
 
             if (await _dataBaseAccess.FindEmailAsync(model.Email, cancellationToken))
                 return response.SetError("EMAIL_REGISTERED", "Email is already registered.");
@@ -124,7 +128,7 @@ namespace DAL.RepositoryLayer.Repositories
 
         public async ValueTask<MobileResponse<bool>> SavePasswordAsync(PasswordViewModel model)
         {
-            var response = new MobileResponse<bool>();
+            var response = new MobileResponse<bool>(_configHandler, "user");
 
             var (isValid, message) = IsValidPassword(model.Password);
             if (!isValid)
@@ -145,7 +149,7 @@ namespace DAL.RepositoryLayer.Repositories
 
         public async Task<MobileResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
         {
-            var response = new MobileResponse<RefreshTokenResponse>();
+            var response = new MobileResponse<RefreshTokenResponse>(_configHandler, "user");
 
             string decryptedToken;
             try

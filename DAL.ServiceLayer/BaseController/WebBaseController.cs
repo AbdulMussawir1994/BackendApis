@@ -1,17 +1,23 @@
 ﻿using DAL.ServiceLayer.Models;
+using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DAL.ServiceLayer.BaseController;
 
 public class WebBaseController : ControllerBase
 {
+    private readonly ConfigHandler _configHandler;
+    public WebBaseController(ConfigHandler configHandler)
+    {
+        _configHandler = configHandler;
+    }
 
     [ApiExplorerSettings(IgnoreApi = true)]
     [NonAction]
     [HttpGet("api/[controller]/{ServiceObject}/{ServiceMethod}/{model}")]
     public MobileResponse<CustomResponse> ModelValidator(object model)
     {
-        MobileResponse<CustomResponse> response = new MobileResponse<CustomResponse>() { Content = new CustomResponse(), LogId = Guid.NewGuid().ToString(), RequestDateTime = DateTime.Now.ToString(), Status = { Code = "", StatusMessage = "", IsSuccess = false, StatusType = StatusType.Error } };
+        MobileResponse<CustomResponse> response = new MobileResponse<CustomResponse>(_configHandler, "modelvalidator") { Content = new CustomResponse(), LogId = Guid.NewGuid().ToString(), RequestDateTime = DateTime.Now.ToString(), Status = { Code = "", StatusMessage = "", IsSuccess = false, StatusType = StatusType.Error } };
 
         if (model != null && !TryValidateModel(model))
         {

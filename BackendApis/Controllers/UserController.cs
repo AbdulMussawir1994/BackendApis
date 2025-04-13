@@ -1,6 +1,7 @@
 ﻿using DAL.DatabaseLayer.ViewModels.AuthModels;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.BaseController;
+using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -14,7 +15,7 @@ namespace BackendApis.Controllers
     {
         private readonly IAuthRepository _authRepository;
 
-        public UserController(IAuthRepository authRepository)
+        public UserController(ConfigHandler configHandler, IAuthRepository authRepository) : base(configHandler)
         {
             _authRepository = authRepository;
         }

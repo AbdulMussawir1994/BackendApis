@@ -5,6 +5,7 @@ using DAL.RepositoryLayer.IDataAccess;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.RepositoryLayer.Repositories;
 using DAL.ServiceLayer.Helpers;
+using DAL.ServiceLayer.Utilities;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
@@ -127,10 +128,12 @@ public static class DependencyInjectionSetup
         // 🧩 Dependency Injection (DI)
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IDataBaseAccess, DataBaseAccess>();
+        services.AddScoped<IRoleUserService, RoleUserService>();
         services.AddScoped<CustomUserManager>();
 
         // Register custom encryption utility as Singleton
         services.AddSingleton<AesGcmEncryption>();
+        services.AddSingleton<ConfigHandler>();
 
         // 🔐 Decrypt Connection String
         var decryptedConnection = new AesGcmEncryption(configuration)

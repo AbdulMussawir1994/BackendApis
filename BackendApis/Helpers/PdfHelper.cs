@@ -1,6 +1,4 @@
-﻿
-
-using iText.Forms;
+﻿using iText.Forms;
 using iText.Forms.Fields;
 using iText.IO.Image;
 using iText.Kernel.Geom;
@@ -8,7 +6,7 @@ using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Element;
 
-namespace BackendApis.Utilities;
+namespace BackendApis.Helpers;
 
 public class PdfHelper
 {

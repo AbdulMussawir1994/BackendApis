@@ -2,6 +2,7 @@
 using Cryptography.Utilities;
 using DAL.DatabaseLayer.DataContext;
 using DAL.ServiceLayer.Helpers;
+using DAL.ServiceLayer.Middleware;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using NLog;
@@ -83,7 +84,8 @@ try
 
     app.UseRateLimiter(); // 👈 Apply rate limiter globally
 
-    app.UseMiddleware<DecryptedJwtMiddleware>();
+    //app.UseMiddleware<DecryptedJwtMiddleware>();
+    app.UseEnterpriseCustomMiddleware();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -93,7 +95,6 @@ try
 
     app.MapControllers();
     app.MapHangfireDashboard();
-
 
     app.Run();
 
