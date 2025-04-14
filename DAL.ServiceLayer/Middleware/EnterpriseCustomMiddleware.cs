@@ -95,9 +95,25 @@ public class EnterpriseCustomMiddleware
             });
 
             var responseBody = await GetLogResponse(context);
-            var reqModel = userLogsHelper.GetLogModel(BuildLogModel(context, requestLog, responseBody));
-            reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryption(reqModel.ResponseBody);
+            var routeData = context.GetRouteData().Values;
 
+            var reqModel = userLogsHelper.GetLogModel(new LogModel
+            {
+                Method = context.Request.Method,
+                Path = context.Request.Path,
+                QueryString = context.Request.QueryString.ToString(),
+                StartTime = DateTime.UtcNow,
+                UserId = _configHandler.UserId,
+                Action = routeData["action"]?.ToString(),
+                Controller = routeData["controller"]?.ToString(),
+                ReqBody = requestLog,
+                ResBody = responseBody,
+                IsExceptionFromRequest = requestLog.Contains("Exception"),
+                IsExceptionFromResponse = responseBody.Contains("Exception"),
+                RequestHeaders = userLogsHelper.GetRequestHeaders(context.Request.Headers)
+            });
+
+            reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryption(reqModel.ResponseBody);
             _ = userLogsHelper.SaveAppUserLogs(reqModel);
         }
         catch (Exception ex)
@@ -143,26 +159,6 @@ public class EnterpriseCustomMiddleware
         context.Response.ContentType = "application/json";
         var response = new { message = message ?? "Unauthorized access." };
         await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));
-    }
-
-    private LogModel BuildLogModel(HttpContext context, string reqBody, string resBody)
-    {
-        var routeData = context.GetRouteData().Values;
-        return new LogModel
-        {
-            Method = context.Request.Method,
-            Path = context.Request.Path,
-            QueryString = context.Request.QueryString.ToString(),
-            StartTime = DateTime.UtcNow,
-            UserId = _configHandler.UserId,
-            Action = routeData["action"]?.ToString(),
-            Controller = routeData["controller"]?.ToString(),
-            ReqBody = reqBody,
-            ResBody = resBody,
-            IsExceptionFromRequest = reqBody.Contains("Exception"),
-            IsExceptionFromResponse = resBody.Contains("Exception"),
-            RequestHeaders = new AppUserLogsHelper(_configHandler).GetRequestHeaders(context.Request.Headers)
-        };
     }
 
     private string? DecryptToken(HttpContext context)
