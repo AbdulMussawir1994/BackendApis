@@ -67,7 +67,7 @@ try
     // 🔹 Register App Services
     builder.Services.RegisterServices(configuration);
     builder.Services.AddEnterpriseIdentity(builder.Configuration);
-    builder.Services.AddTransient<DecryptedJwtMiddleware>();
+    //builder.Services.AddTransient<JwtDecryptedMiddleware>();
 
     var app = builder.Build();
 

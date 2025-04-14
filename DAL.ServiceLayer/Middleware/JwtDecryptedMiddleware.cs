@@ -1,5 +1,8 @@
 ﻿using Cryptography.Utilities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
@@ -7,16 +10,16 @@ using System.Net;
 using System.Security.Claims;
 using System.Text;
 
-namespace BackendApis.Utilities;
+namespace DAL.ServiceLayer.Middleware;
 
-public class DecryptedJwtMiddleware : IMiddleware
+public class JwtDecryptedMiddleware : IMiddleware
 {
-    private readonly ILogger<DecryptedJwtMiddleware> _logger;
+    private readonly ILogger<JwtDecryptedMiddleware> _logger;
     private readonly AesGcmEncryption _aesGcmEncryption;
     private readonly IConfiguration _configuration;
 
-    public DecryptedJwtMiddleware(
-        ILogger<DecryptedJwtMiddleware> logger,
+    public JwtDecryptedMiddleware(
+        ILogger<JwtDecryptedMiddleware> logger,
         AesGcmEncryption aesGcmEncryption,
         IConfiguration configuration)
     {

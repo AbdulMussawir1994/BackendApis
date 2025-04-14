@@ -23,10 +23,10 @@ namespace DAL.ServiceLayer.Middleware;
 public class EnterpriseCustomMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly RecyclableMemoryStreamManager _memoryStreamManager = new();
     private readonly IConfiguration _config;
     private readonly ILogger<EnterpriseCustomMiddleware> _logger;
     private readonly ConfigHandler _configHandler;
+    private readonly RecyclableMemoryStreamManager _memoryStreamManager = new();
     private string _encryptedKey = string.Empty;
 
     public EnterpriseCustomMiddleware(RequestDelegate next, IConfiguration config, ILogger<EnterpriseCustomMiddleware> logger, ConfigHandler configHandler)
@@ -39,9 +39,10 @@ public class EnterpriseCustomMiddleware
 
     public async Task Invoke(HttpContext context)
     {
+        string? errorMessage = null;
+
         try
         {
-            string? errorMessage;
             var decryptedToken = DecryptToken(context);
             if (!string.IsNullOrEmpty(decryptedToken))
             {
@@ -53,54 +54,27 @@ public class EnterpriseCustomMiddleware
                 }
                 else
                 {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    context.Response.ContentType = "application/json";
-                    var response = new { message = errorMessage };
-                    await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));
+                    await WriteUnauthorizedResponse(context, errorMessage);
                     return;
                 }
             }
 
-            _configHandler.LogId = Guid.NewGuid().ToString();
-            _configHandler.RequestedDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            SetInitialContext(context);
 
             var claimsIdentity = context.User.Identity as ClaimsIdentity;
-            var userId = claimsIdentity?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                         ?? claimsIdentity?.FindFirst("User")?.Value
-                         ?? claimsIdentity?.FindFirst("sub")?.Value
-                         ?? "0";
-            _configHandler.UserId = userId;
+            _configHandler.UserId = claimsIdentity?.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                                    claimsIdentity?.FindFirst("User")?.Value ??
+                                    claimsIdentity?.FindFirst("sub")?.Value ?? "0";
 
-            var isPostmanAllowed = _config.GetValue("EncryptionSettings:IsPostmanAllowed", true);
-            var isRequestEncrypted = _config.GetValue("EncryptionSettings:Encryption", false);
-            var isRefreshToken = context.Request.Headers.TryGetValue("IsRefreshToken", out var tokenBit) && bool.TryParse(tokenBit, out var result) ? result : true;
-
-            var startTime = DateTime.UtcNow;
-            var nonEncryptedPaths = _config["NonEncryptedRoute:List"]?.ToLower().Split(",") ?? [];
-
-            var routeData = context.GetRouteData().Values;
-            var controller = routeData["controller"]?.ToString()?.ToLower();
-            var action = routeData["action"]?.ToString()?.ToLower();
-
-            var key = context.Request.Headers["Key"].ToString();
-            if (!string.IsNullOrEmpty(key))
+            if (!await TryDecryptRequest(context))
             {
-                key = new RsaEncryption(_config).Decrypt(key);
-            }
-
-            bool isDecrypted = true;
-            if (isRequestEncrypted && !string.IsNullOrEmpty(key) && !nonEncryptedPaths.Contains(action) && context.Request.Method != HttpMethods.Get)
-            {
-                isDecrypted = await DecryptRequest(context.Request, key);
+                await WriteUnauthorizedResponse(context, "Failed to decrypt request body.");
+                return;
             }
 
             var userLogsHelper = new AppUserLogsHelper(_configHandler);
             var requestLog = await userLogsHelper.GetLogRequest(context);
-            requestLog =/* isDecrypted &&*/ !string.IsNullOrEmpty(key)
-                ? new LogsParamEncryption().CredentialsEncryption(requestLog)
-                : (isPostmanAllowed || context.Request.Method == HttpMethods.Get
-                    ? new LogsParamEncryption().CredentialsEncryption(requestLog)
-                    : requestLog);
+            requestLog = ApplyEncryptionToRequest(context, requestLog);
 
             context.Response.OnStarting(() =>
             {
@@ -110,24 +84,9 @@ public class EnterpriseCustomMiddleware
             });
 
             var responseBody = await GetLogResponse(context);
-
-            var reqModel = userLogsHelper.GetLogModel(new LogModel
-            {
-                Method = context.Request.Method,
-                Path = context.Request.Path,
-                QueryString = context.Request.QueryString.ToString(),
-                StartTime = startTime,
-                UserId = userId,
-                Action = action,
-                ReqBody = requestLog,
-                ResBody = responseBody,
-                Controller = controller,
-                IsExceptionFromRequest = requestLog.Contains("Exception"),
-                IsExceptionFromResponse = responseBody.Contains("Exception"),
-                RequestHeaders = userLogsHelper.GetRequestHeaders(context.Request.Headers)
-            });
-
+            var reqModel = userLogsHelper.GetLogModel(BuildLogModel(context, requestLog, responseBody));
             reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryption(reqModel.ResponseBody);
+
             _ = userLogsHelper.SaveAppUserLogs(reqModel);
         }
         catch (Exception ex)
@@ -136,41 +95,79 @@ public class EnterpriseCustomMiddleware
         }
     }
 
-    private string? DecryptToken(HttpContext context)
+    private void SetInitialContext(HttpContext context)
     {
-        if (!context.Request.Headers.TryGetValue("Authorization", out var authHeader) ||
-            !authHeader.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        var encryptedToken = authHeader.ToString().Substring("Bearer ".Length).Trim();
-        return new AesGcmEncryption(_config).Decrypt(encryptedToken);
+        _configHandler.LogId = Guid.NewGuid().ToString();
+        _configHandler.RequestedDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
 
-    //private ClaimsPrincipal? ValidateTokenAndGetPrincipal(string jwt)
-    //{
-    //    var tokenHandler = new JwtSecurityTokenHandler();
-    //    var key = Encoding.UTF8.GetBytes(_config["JWTKey:Secret"]!);
+    private async Task<bool> TryDecryptRequest(HttpContext context)
+    {
+        var isEncrypted = _config.GetValue("EncryptionSettings:Encryption", false);
+        var nonEncryptedRoutes = _config["NonEncryptedRoute:List"]?.ToLower().Split(",") ?? [];
+        var routeAction = context.GetRouteData().Values["action"]?.ToString()?.ToLower();
 
-    //    var validationParams = new TokenValidationParameters
-    //    {
-    //        ValidateIssuerSigningKey = true,
-    //        IssuerSigningKey = new SymmetricSecurityKey(key),
-    //        ValidateIssuer = true,
-    //        ValidateAudience = true,
-    //        ValidIssuer = _config["JWTKey:ValidIssuer"],
-    //        ValidAudience = _config["JWTKey:ValidAudience"],
-    //        RequireExpirationTime = true,
-    //        ClockSkew = TimeSpan.Zero
-    //    };
+        var key = context.Request.Headers["Key"].ToString();
+        if (!string.IsNullOrEmpty(key)) key = new RsaEncryption(_config).Decrypt(key);
 
-    //    return tokenHandler.ValidateToken(jwt, validationParams, out _);
-    //}
+        if (!isEncrypted || string.IsNullOrEmpty(key) ||
+            nonEncryptedRoutes.Contains(routeAction) || context.Request.Method == HttpMethods.Get)
+            return true;
+
+        return await DecryptRequest(context.Request, key);
+    }
+
+    private string ApplyEncryptionToRequest(HttpContext context, string requestLog)
+    {
+        var isPostmanAllowed = _config.GetValue("EncryptionSettings:IsPostmanAllowed", true);
+        if (isPostmanAllowed || context.Request.Method == HttpMethods.Get)
+            return new LogsParamEncryption().CredentialsEncryption(requestLog);
+
+        return requestLog;
+    }
+
+    private async Task WriteUnauthorizedResponse(HttpContext context, string? message)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        context.Response.ContentType = "application/json";
+        var response = new { message = message ?? "Unauthorized access." };
+        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));
+    }
+
+    private LogModel BuildLogModel(HttpContext context, string reqBody, string resBody)
+    {
+        var routeData = context.GetRouteData().Values;
+        return new LogModel
+        {
+            Method = context.Request.Method,
+            Path = context.Request.Path,
+            QueryString = context.Request.QueryString.ToString(),
+            StartTime = DateTime.UtcNow,
+            UserId = _configHandler.UserId,
+            Action = routeData["action"]?.ToString(),
+            Controller = routeData["controller"]?.ToString(),
+            ReqBody = reqBody,
+            ResBody = resBody,
+            IsExceptionFromRequest = reqBody.Contains("Exception"),
+            IsExceptionFromResponse = resBody.Contains("Exception"),
+            RequestHeaders = new AppUserLogsHelper(_configHandler).GetRequestHeaders(context.Request.Headers)
+        };
+    }
+
+    private string? DecryptToken(HttpContext context)
+    {
+        if (!context.Request.Headers.TryGetValue("Authorization", out var header) ||
+            !header.ToString().StartsWith("Bearer ")) return null;
+
+        var encryptedToken = header.ToString()["Bearer ".Length..].Trim();
+        return new AesGcmEncryption(_config).Decrypt(encryptedToken);
+    }
 
     private ClaimsPrincipal? ValidateTokenAndGetPrincipal(string jwt, out string? errorMessage)
     {
         errorMessage = null;
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_config["JWTKey:Secret"]!);
+        var key = Encoding.UTF8.GetBytes(_config["JWTKey:Secret"]);
 
         var validationParams = new TokenValidationParameters
         {
@@ -191,33 +188,26 @@ public class EnterpriseCustomMiddleware
         catch (SecurityTokenExpiredException)
         {
             errorMessage = "Token has expired.";
-            return null;
         }
         catch (SecurityTokenException ex)
         {
             errorMessage = $"Invalid token: {ex.Message}";
-            return null;
         }
         catch (Exception ex)
         {
-            errorMessage = $"An unexpected error occurred: {ex.Message}";
-            return null;
+            errorMessage = $"Unexpected error: {ex.Message}";
         }
+        return null;
     }
 
     private async Task<bool> DecryptRequest(HttpRequest request, string key)
     {
-        if (!request.Path.Value.Contains("api")) return true;
-
         try
         {
             using var memoryStream = new MemoryStream();
             await request.Body.CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
-            var encryptedData = Encoding.UTF8.GetString(memoryStream.ToArray());
-            var decrypted = new AesGcmEncryption(_config).Decrypt(encryptedData, key);
-            request.Body = new MemoryStream(Encoding.UTF8.GetBytes(decrypted));
-            request.Body.Position = 0;
+            var decrypted = new AesGcmEncryption(_config).Decrypt(Encoding.UTF8.GetString(memoryStream.ToArray()), key);
+            request.Body = new MemoryStream(Encoding.UTF8.GetBytes(decrypted)) { Position = 0 };
             return true;
         }
         catch
@@ -229,51 +219,48 @@ public class EnterpriseCustomMiddleware
     private async Task<string> GetLogResponse(HttpContext context, bool encryptResponse = false)
     {
         string key = new GeneralEncryption(_config).GenerateSymmetricKey();
-        string publicKey = _config["EncryptionSettings:ResponsePublicKey"];
-        _encryptedKey = new RsaEncryption(_config).Encrypt(key, publicKey);
+        _encryptedKey = new RsaEncryption(_config).Encrypt(key, _config["EncryptionSettings:ResponsePublicKey"]);
 
-        var originalBodyStream = context.Response.Body;
+        var originalBody = context.Response.Body;
         await using var responseBody = _memoryStreamManager.GetStream();
         context.Response.Body = responseBody;
 
         try
         {
-            await _next(context); // Let the inner middleware write to responseBody
+            await _next(context);
             context.Response.Body.Seek(0, SeekOrigin.Begin);
 
-            // Read the full response from the in-memory stream
             var response = await new StreamReader(context.Response.Body).ReadToEndAsync();
-            context.Response.Body.Seek(0, SeekOrigin.Begin); // Reset again before copying
+            context.Response.Body.Seek(0, SeekOrigin.Begin);
 
             var finalOutput = encryptResponse
                 ? new AesGcmEncryption(_config).Decrypt(response, key)
                 : response;
 
-            // Write the final output to the original body stream
             var outputBytes = Encoding.UTF8.GetBytes(finalOutput);
             context.Response.ContentLength = outputBytes.Length;
-            context.Response.Body = originalBodyStream; // Important: reset stream before write
-            await context.Response.Body.WriteAsync(outputBytes, 0, outputBytes.Length);
+            context.Response.Body = originalBody;
+            await context.Response.Body.WriteAsync(outputBytes);
 
             return response;
         }
         catch (Exception ex)
         {
-            var errorResponse = new MobileResponse<string>(_configHandler, "Application");
-            errorResponse.SetError("ERR-1003", "Password is Invalid.");
-
-            var errorBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(errorResponse));
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/json";
 
-            await originalBodyStream.WriteAsync(errorBytes);
-            return $"Exception : {ex}";
+            var errorResponse = new MobileResponse<string>(_configHandler, "Application");
+            errorResponse.SetError("ERR-1003", "Password is Invalid.");
+            var errorJson = JsonConvert.SerializeObject(errorResponse);
+
+            await originalBody.WriteAsync(Encoding.UTF8.GetBytes(errorJson));
+            return $"Exception : {ex.Message}";
         }
     }
 
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var statusCode = exception switch
+        var status = exception switch
         {
             ArgumentNullException => HttpStatusCode.BadRequest,
             UnauthorizedAccessException => HttpStatusCode.Unauthorized,
@@ -282,38 +269,31 @@ public class EnterpriseCustomMiddleware
             _ => HttpStatusCode.InternalServerError
         };
 
-        var problemDetails = new ProblemDetails
+        var problem = new ProblemDetails
         {
-            Status = (int)statusCode,
-            Type = $"https://httpstatuses.com/{(int)statusCode}",
-            Title = statusCode switch
+            Status = (int)status,
+            Type = $"https://httpstatuses.com/{(int)status}",
+            Title = status.ToString(),
+            Extensions =
             {
-                HttpStatusCode.BadRequest => "Bad Request",
-                HttpStatusCode.Unauthorized => "Unauthorized",
-                HttpStatusCode.UnprocessableEntity => "Validation Error",
-                HttpStatusCode.RequestTimeout => "Request Timeout",
-                HttpStatusCode.InternalServerError => "Internal Server Error",
-                _ => "Error"
-            },
+                ["ErrorId"] = Guid.NewGuid().ToString(),
+                ["RequestPath"] = context.Request.Path,
+                ["RequestId"] = context.TraceIdentifier
+            }
         };
 
-        problemDetails.Extensions["ErrorId"] = Guid.NewGuid().ToString();
-        problemDetails.Extensions["RequestPath"] = context.Request.Path;
-        problemDetails.Extensions["RequestId"] = context.TraceIdentifier;
-
+        context.Response.StatusCode = (int)status;
         context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)statusCode;
 
-        _logger.LogError(exception, "Unhandled exception {ErrorId} at {Path} (Request ID: {RequestId})", problemDetails.Extensions["ErrorId"], context.Request.Path, context.TraceIdentifier);
+        _logger.LogError(exception, "Unhandled exception {ErrorId} at {Path} (Request ID: {RequestId})",
+            problem.Extensions["ErrorId"], context.Request.Path, context.TraceIdentifier);
 
-        await context.Response.WriteAsJsonAsync(problemDetails);
+        await context.Response.WriteAsJsonAsync(problem);
     }
 }
 
 public static class EnterpriseCustomMiddlewareExtensions
 {
-    public static IApplicationBuilder UseEnterpriseCustomMiddleware(this IApplicationBuilder builder)
-    {
-        return builder.UseMiddleware<EnterpriseCustomMiddleware>();
-    }
+    public static IApplicationBuilder UseEnterpriseCustomMiddleware(this IApplicationBuilder builder) =>
+        builder.UseMiddleware<EnterpriseCustomMiddleware>();
 }
