@@ -3,6 +3,7 @@ using DAL.ServiceLayer.LogsHelper;
 using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Models.LogsModels;
 using DAL.ServiceLayer.Utilities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -40,31 +41,42 @@ public class EnterpriseCustomMiddleware
     public async Task Invoke(HttpContext context)
     {
         string? errorMessage = null;
+        SetInitialContext(context);
+
+        var endpoint = context.GetEndpoint();
+        var allowAnonymous = endpoint?.Metadata?.GetMetadata<IAllowAnonymous>() is not null;
+
+        var decryptedToken = DecryptToken(context);
+        var userLogsHelper = new AppUserLogsHelper(_configHandler);
 
         try
         {
-            var decryptedToken = DecryptToken(context);
-            if (!string.IsNullOrEmpty(decryptedToken))
+            if (!allowAnonymous)
             {
-                var principal = ValidateTokenAndGetPrincipal(decryptedToken, out errorMessage);
-                if (principal is not null)
+                if (!string.IsNullOrEmpty(decryptedToken))
                 {
-                    context.User = principal;
-                    context.Request.Headers["Authorization"] = $"Bearer {decryptedToken}";
+                    var (principal, message) = ValidateTokenAndGetPrincipal(decryptedToken);
+                    errorMessage = message;
+                    if (principal is not null)
+                    {
+                        context.User = principal;
+                        context.Request.Headers["Authorization"] = $"Bearer {decryptedToken}";
+                    }
+                    else
+                    {
+                        await WriteUnauthorizedResponse(context, errorMessage);
+                        return;
+                    }
                 }
                 else
                 {
-                    await WriteUnauthorizedResponse(context, errorMessage);
+                    await WriteUnauthorizedResponse(context, "Authorization token is required.");
                     return;
                 }
             }
 
-            SetInitialContext(context);
-
-            var claimsIdentity = context.User.Identity as ClaimsIdentity;
-            _configHandler.UserId = claimsIdentity?.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
-                                    claimsIdentity?.FindFirst("User")?.Value ??
-                                    claimsIdentity?.FindFirst("sub")?.Value ?? "0";
+            var identity = context.User.Identity as ClaimsIdentity;
+            _configHandler.UserId = identity?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
 
             if (!await TryDecryptRequest(context))
             {
@@ -72,7 +84,6 @@ public class EnterpriseCustomMiddleware
                 return;
             }
 
-            var userLogsHelper = new AppUserLogsHelper(_configHandler);
             var requestLog = await userLogsHelper.GetLogRequest(context);
             requestLog = ApplyEncryptionToRequest(context, requestLog);
 
@@ -91,6 +102,7 @@ public class EnterpriseCustomMiddleware
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Exception caught in middleware");
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -104,7 +116,7 @@ public class EnterpriseCustomMiddleware
     private async Task<bool> TryDecryptRequest(HttpContext context)
     {
         var isEncrypted = _config.GetValue("EncryptionSettings:Encryption", false);
-        var nonEncryptedRoutes = _config["NonEncryptedRoute:List"]?.ToLower().Split(",") ?? [];
+        var nonEncryptedRoutes = _config["NonEncryptedRoute:List"]?.ToLower().Split(',') ?? [];
         var routeAction = context.GetRouteData().Values["action"]?.ToString()?.ToLower();
 
         var key = context.Request.Headers["Key"].ToString();
@@ -120,10 +132,9 @@ public class EnterpriseCustomMiddleware
     private string ApplyEncryptionToRequest(HttpContext context, string requestLog)
     {
         var isPostmanAllowed = _config.GetValue("EncryptionSettings:IsPostmanAllowed", true);
-        if (isPostmanAllowed || context.Request.Method == HttpMethods.Get)
-            return new LogsParamEncryption().CredentialsEncryption(requestLog);
-
-        return requestLog;
+        return isPostmanAllowed || context.Request.Method == HttpMethods.Get
+            ? new LogsParamEncryption().CredentialsEncryption(requestLog)
+            : requestLog;
     }
 
     private async Task WriteUnauthorizedResponse(HttpContext context, string? message)
@@ -163,9 +174,11 @@ public class EnterpriseCustomMiddleware
         return new AesGcmEncryption(_config).Decrypt(encryptedToken);
     }
 
-    private ClaimsPrincipal? ValidateTokenAndGetPrincipal(string jwt, out string? errorMessage)
+    private (ClaimsPrincipal? Principal, string? ErrorMessage) ValidateTokenAndGetPrincipal(string jwt)
     {
-        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(jwt))
+            return (null, "JWT token is missing.");
+
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.UTF8.GetBytes(_config["JWTKey:Secret"]);
 
@@ -183,21 +196,21 @@ public class EnterpriseCustomMiddleware
 
         try
         {
-            return tokenHandler.ValidateToken(jwt, validationParams, out _);
+            var principal = tokenHandler.ValidateToken(jwt, validationParams, out _);
+            return (principal, null);
         }
-        catch (SecurityTokenExpiredException)
+        catch (SecurityTokenExpiredException ex)
         {
-            errorMessage = "Token has expired.";
+            return (null, $"Token has expired: {ex.Message}");
         }
         catch (SecurityTokenException ex)
         {
-            errorMessage = $"Invalid token: {ex.Message}";
+            return (null, $"Invalid token: {ex.Message}");
         }
         catch (Exception ex)
         {
-            errorMessage = $"Unexpected error: {ex.Message}";
+            return (null, $"Unexpected error while validating token: {ex.Message}");
         }
-        return null;
     }
 
     private async Task<bool> DecryptRequest(HttpRequest request, string key)
