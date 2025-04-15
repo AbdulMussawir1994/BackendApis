@@ -12,6 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Crypto.Parameters;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -53,6 +55,11 @@ namespace DAL.RepositoryLayer.Repositories
 
             if (!await _userManager.CheckPasswordAsync(user, model.Password))
                 return response.SetError("ERR-1003", "Password is Invalid.");
+
+            // 2. Verify password and check account type
+            //bool isVerified = await CheckPasswordAndAccountTypeAsync(user, model.Password, cancellationToken);
+            // if (!isVerified)
+            //    return response.SetError("ERR-1003", "Invalid password or account type not found.");
 
             // var jwtToken = GenerateJwtToken(user.Id);
             var jwtToken = GenerateSecureJwtToken(user.Id, "Admin", user.Email);
@@ -201,6 +208,22 @@ namespace DAL.RepositoryLayer.Repositories
             return await _dataBaseAccess.SaveRefreshTokenAsync(user, refreshToken);
         }
 
+        //private async Task<bool> CheckPasswordAsync(AppUser user, string password, CancellationToken cancellationToken)
+        //{
+        //    var verificationResult = _userManager.PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+
+        //    if (verificationResult == PasswordVerificationResult.Failed)
+        //        return false;
+
+        //    var accountType = await _dbContext.AccountGroups
+        //        .Where(ag => ag.Account.Email == user.Email)
+        //        .Select(ag => ag.Type)
+        //        .FirstOrDefaultAsync(cancellationToken);
+
+        //    return accountType != 0; // Or apply custom logic on type if needed
+        //}
+
+
         private static (bool isValid, string message) IsValidPassword(string password)
         {
             var errors = new List<string>();
@@ -309,6 +332,50 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var pakistanTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Karachi");
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, pakistanTimeZone);
+        }
+
+        public string GenerateKmacJwtToken(string userId, string role, string email)
+        {
+            var utcNow = DateTime.UtcNow;
+            var issuer = _configuration["JWTKey:ValidIssuer"];
+            var audience = _configuration["JWTKey:ValidAudience"];
+            var expiryMinutes = int.Parse(_configuration["JWTKey:TokenExpiryTimeInMinutes"] ?? "30");
+
+            var secret = _configuration["JWTKey:Secret"] ?? throw new InvalidOperationException("JWT secret is missing.");
+            var keyBytes = Encoding.UTF8.GetBytes(secret);
+
+            var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, userId),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new(ClaimTypes.NameIdentifier, userId),
+            new(ClaimTypes.Email, email),
+            new(ClaimTypes.Role, role)
+        };
+
+            // Use KMAC256 to derive the HMAC key securely
+            var kmac = new KMac(256, keyBytes);
+            kmac.Init(new KeyParameter(keyBytes));
+            kmac.BlockUpdate(Encoding.UTF8.GetBytes(userId + role + email), 0, userId.Length + role.Length + email.Length);
+            var macOutput = new byte[kmac.GetMacSize()];
+            kmac.DoFinal(macOutput, 0);
+
+            var signingKey = new SymmetricSecurityKey(macOutput);
+            var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha512);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = utcNow.AddMinutes(expiryMinutes),
+                SigningCredentials = signingCredentials,
+                Issuer = issuer,
+                Audience = audience
+            };
+
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.CreateToken(tokenDescriptor);
+            return handler.WriteToken(token);
         }
 
         #endregion

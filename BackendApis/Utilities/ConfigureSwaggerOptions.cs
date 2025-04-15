@@ -20,7 +20,7 @@ public class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
         {
             options.SwaggerDoc(description.GroupName, new OpenApiInfo
             {
-                Title = $"RapitalChannel API v{description.ApiVersion}",
+                Title = $"BackEnd API v{description.ApiVersion}",
                 Version = description.ApiVersion.ToString()
             });
         }

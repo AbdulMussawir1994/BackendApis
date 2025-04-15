@@ -20,7 +20,7 @@ public static class SwaggerConfiguration
                 {
                     options.SwaggerEndpoint(
                         $"/swagger/{description.GroupName}/swagger.json",
-                        $"RapitalChannel {description.GroupName.ToUpperInvariant()}"
+                        $"BackEnd-Api's{description.GroupName.ToUpperInvariant()}"
                     );
                 }
             });
