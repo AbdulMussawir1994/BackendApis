@@ -5,12 +5,14 @@ using DAL.RepositoryLayer.IDataAccess;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.RepositoryLayer.Repositories;
 using DAL.ServiceLayer.Helpers;
+using DAL.ServiceLayer.Middleware;
 using DAL.ServiceLayer.Utilities;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.IdentityModel.Tokens;
@@ -134,6 +136,8 @@ public static class DependencyInjectionSetup
         // Register custom encryption utility as Singleton
         services.AddSingleton<AesGcmEncryption>();
         services.AddSingleton<ConfigHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddleware>();
+
 
         // 🔐 Decrypt Connection String
         var decryptedConnection = new AesGcmEncryption(configuration)

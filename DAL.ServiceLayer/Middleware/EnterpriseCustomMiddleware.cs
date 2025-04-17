@@ -4,11 +4,13 @@ using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Models.LogsModels;
 using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
@@ -40,51 +42,41 @@ public class EnterpriseCustomMiddleware
 
     public async Task Invoke(HttpContext context)
     {
-        string? errorMessage = null;
         SetInitialContext(context);
-
-        var endpoint = context.GetEndpoint();
-        var allowAnonymous = endpoint?.Metadata?.GetMetadata<IAllowAnonymous>() is not null;
-
-        var decryptedToken = DecryptToken(context);
         var userLogsHelper = new AppUserLogsHelper(_configHandler);
+        string requestLog = string.Empty;
 
         try
         {
-            if (!allowAnonymous)
+            if (context.GetEndpoint()?.Metadata?.GetMetadata<IAllowAnonymous>() is null)
             {
-                if (!string.IsNullOrEmpty(decryptedToken))
+                var token = DecryptToken(context);
+                if (string.IsNullOrEmpty(token))
                 {
-                    var (principal, message) = ValidateTokenAndGetPrincipal(decryptedToken);
-                    errorMessage = message;
-                    if (principal is not null)
-                    {
-                        context.User = principal;
-                        context.Request.Headers["Authorization"] = $"Bearer {decryptedToken}";
-                    }
-                    else
-                    {
-                        await WriteUnauthorizedResponse(context, errorMessage);
-                        return;
-                    }
-                }
-                else
-                {
-                    await WriteUnauthorizedResponse(context, "Authorization token is required.");
+                    await CustomAuthorizationMiddleware.WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, "Authorization token is required.");
                     return;
                 }
+
+                var (principal, errorMessage) = ValidateTokenAndGetPrincipal(token);
+                if (principal == null)
+                {
+                    await CustomAuthorizationMiddleware.WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, errorMessage);
+                    return;
+                }
+
+                context.User = principal;
+                context.Request.Headers["Authorization"] = $"Bearer {token}";
             }
 
-            var identity = context.User.Identity as ClaimsIdentity;
-            _configHandler.UserId = identity?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+            _configHandler.UserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
 
             if (!await TryDecryptRequest(context))
             {
-                await WriteUnauthorizedResponse(context, "Failed to decrypt request body.");
+                await CustomAuthorizationMiddleware.WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, "Failed to decrypt request body.");
                 return;
             }
 
-            var requestLog = await userLogsHelper.GetLogRequest(context);
+            requestLog = await userLogsHelper.GetLogRequest(context);
             requestLog = ApplyEncryptionToRequest(context, requestLog);
 
             context.Response.OnStarting(() =>
@@ -95,32 +87,37 @@ public class EnterpriseCustomMiddleware
             });
 
             var responseBody = await GetLogResponse(context);
-            var routeData = context.GetRouteData().Values;
-
-            var reqModel = userLogsHelper.GetLogModel(new LogModel
-            {
-                Method = context.Request.Method,
-                Path = context.Request.Path,
-                QueryString = context.Request.QueryString.ToString(),
-                StartTime = DateTime.UtcNow,
-                UserId = _configHandler.UserId,
-                Action = routeData["action"]?.ToString(),
-                Controller = routeData["controller"]?.ToString(),
-                ReqBody = requestLog,
-                ResBody = responseBody,
-                IsExceptionFromRequest = requestLog.Contains("Exception"),
-                IsExceptionFromResponse = responseBody.Contains("Exception"),
-                RequestHeaders = userLogsHelper.GetRequestHeaders(context.Request.Headers)
-            });
-
-            reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryption(reqModel.ResponseBody);
-            _ = userLogsHelper.SaveAppUserLogs(reqModel);
+            await SaveRequestLog(context, requestLog, responseBody, userLogsHelper);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception caught in middleware");
             await HandleExceptionAsync(context, ex);
         }
+    }
+
+    private async Task SaveRequestLog(HttpContext context, string requestLog, string responseBody, AppUserLogsHelper userLogsHelper)
+    {
+        var routeData = context.GetRouteData().Values;
+
+        var reqModel = userLogsHelper.GetLogModel(new LogModel
+        {
+            Method = context.Request.Method,
+            Path = context.Request.Path,
+            QueryString = context.Request.QueryString.ToString(),
+            StartTime = DateTime.UtcNow,
+            UserId = _configHandler.UserId,
+            Action = routeData["action"]?.ToString(),
+            Controller = routeData["controller"]?.ToString(),
+            ReqBody = requestLog,
+            ResBody = responseBody,
+            IsExceptionFromRequest = requestLog.Contains("Exception"),
+            IsExceptionFromResponse = responseBody.Contains("Exception"),
+            RequestHeaders = userLogsHelper.GetRequestHeaders(context.Request.Headers)
+        });
+
+        reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryptionResponse(reqModel.ResponseBody);
+        _ = userLogsHelper.SaveAppUserLogs(reqModel);
     }
 
     private void SetInitialContext(HttpContext context)
@@ -149,16 +146,8 @@ public class EnterpriseCustomMiddleware
     {
         var isPostmanAllowed = _config.GetValue("EncryptionSettings:IsPostmanAllowed", true);
         return isPostmanAllowed || context.Request.Method == HttpMethods.Get
-            ? new LogsParamEncryption().CredentialsEncryption(requestLog)
+            ? new LogsParamEncryption().CredentialsEncryptionRequest(requestLog)
             : requestLog;
-    }
-
-    private async Task WriteUnauthorizedResponse(HttpContext context, string? message)
-    {
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        context.Response.ContentType = "application/json";
-        var response = new { message = message ?? "Unauthorized access." };
-        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));
     }
 
     private string? DecryptToken(HttpContext context)
@@ -195,17 +184,9 @@ public class EnterpriseCustomMiddleware
             var principal = tokenHandler.ValidateToken(jwt, validationParams, out _);
             return (principal, null);
         }
-        catch (SecurityTokenExpiredException ex)
-        {
-            return (null, $"Token has expired: {ex.Message}");
-        }
-        catch (SecurityTokenException ex)
-        {
-            return (null, $"Invalid token: {ex.Message}");
-        }
         catch (Exception ex)
         {
-            return (null, $"Unexpected error while validating token: {ex.Message}");
+            return (null, ex.Message);
         }
     }
 
@@ -238,14 +219,10 @@ public class EnterpriseCustomMiddleware
         {
             await _next(context);
             context.Response.Body.Seek(0, SeekOrigin.Begin);
-
             var response = await new StreamReader(context.Response.Body).ReadToEndAsync();
             context.Response.Body.Seek(0, SeekOrigin.Begin);
 
-            var finalOutput = encryptResponse
-                ? new AesGcmEncryption(_config).Decrypt(response, key)
-                : response;
-
+            var finalOutput = encryptResponse ? new AesGcmEncryption(_config).Decrypt(response, key) : response;
             var outputBytes = Encoding.UTF8.GetBytes(finalOutput);
             context.Response.ContentLength = outputBytes.Length;
             context.Response.Body = originalBody;
@@ -259,7 +236,7 @@ public class EnterpriseCustomMiddleware
             context.Response.ContentType = "application/json";
 
             var errorResponse = new MobileResponse<string>(_configHandler, "Application");
-            errorResponse.SetError("ERR-1003", "Password is Invalid.");
+            errorResponse.SetError("ERR-1003", "Internal Server Error.");
             var errorJson = JsonConvert.SerializeObject(errorResponse);
 
             await originalBody.WriteAsync(Encoding.UTF8.GetBytes(errorJson));
@@ -297,6 +274,66 @@ public class EnterpriseCustomMiddleware
         context.Response.StatusCode = (int)code;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsJsonAsync(problem);
+    }
+}
+
+public class CustomAuthorizationMiddleware : IAuthorizationMiddlewareResultHandler
+{
+    private readonly AuthorizationMiddlewareResultHandler _defaultHandler = new();
+
+    public async Task HandleAsync(RequestDelegate next, HttpContext context, AuthorizationPolicy policy, PolicyAuthorizationResult authorizeResult)
+    {
+        if (authorizeResult.Forbidden)
+        {
+            await WriteErrorAndLog(context, StatusCodes.Status403Forbidden, "Access Denied. You do not have the required permission.");
+            return;
+        }
+
+        if (authorizeResult.Challenged)
+        {
+            await WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, "Authentication required.");
+            return;
+        }
+
+        await _defaultHandler.HandleAsync(next, context, policy, authorizeResult);
+    }
+
+    public static async Task WriteErrorAndLog(HttpContext context, int statusCode, string message)
+    {
+        var logger = context.RequestServices.GetRequiredService<ILogger<CustomAuthorizationMiddleware>>();
+        var configHandler = context.RequestServices.GetRequiredService<ConfigHandler>();
+        var logHelper = new AppUserLogsHelper(configHandler);
+
+        var response = new { status = statusCode == StatusCodes.Status403Forbidden ? "Forbidden" : "Unauthorized", message };
+        var json = JsonConvert.SerializeObject(response);
+
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(json);
+
+        var requestLog = await logHelper.GetLogRequest(context);
+        var routeData = context.GetRouteData().Values;
+
+        var logModel = logHelper.GetLogModel(new LogModel
+        {
+            Method = context.Request.Method,
+            Path = context.Request.Path,
+            QueryString = context.Request.QueryString.ToString(),
+            StartTime = DateTime.UtcNow,
+            UserId = "0",
+            Action = routeData["action"]?.ToString(),
+            Controller = routeData["controller"]?.ToString(),
+            ReqBody = requestLog,
+            ResBody = json,
+            IsExceptionFromRequest = requestLog.Contains("Exception"),
+            IsExceptionFromResponse = json.Contains("Exception"),
+            RequestHeaders = logHelper.GetRequestHeaders(context.Request.Headers)
+        });
+
+        logModel.ResponseBody = new LogsParamEncryption().CredentialsEncryptionResponse(logModel.ResponseBody);
+        _ = logHelper.SaveAppUserLogs(logModel);
+
+        logger.LogWarning("Authorization failure logged with status code {StatusCode}", statusCode);
     }
 }
 

@@ -97,9 +97,9 @@ public class OldEnterpriseCustomMiddleware
             var userLogsHelper = new AppUserLogsHelper(_configHandler);
             var requestLog = await userLogsHelper.GetLogRequest(context);
             requestLog =/* isDecrypted &&*/ !string.IsNullOrEmpty(key)
-                ? new LogsParamEncryption().CredentialsEncryption(requestLog)
+                ? new LogsParamEncryption().CredentialsEncryptionRequest(requestLog)
                 : (isPostmanAllowed || context.Request.Method == HttpMethods.Get
-                    ? new LogsParamEncryption().CredentialsEncryption(requestLog)
+                    ? new LogsParamEncryption().CredentialsEncryptionRequest(requestLog)
                     : requestLog);
 
             context.Response.OnStarting(() =>
@@ -127,7 +127,7 @@ public class OldEnterpriseCustomMiddleware
                 RequestHeaders = userLogsHelper.GetRequestHeaders(context.Request.Headers)
             });
 
-            reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryption(reqModel.ResponseBody);
+            reqModel.ResponseBody = new LogsParamEncryption().CredentialsEncryptionResponse(reqModel.ResponseBody);
             _ = userLogsHelper.SaveAppUserLogs(reqModel);
         }
         catch (Exception ex)

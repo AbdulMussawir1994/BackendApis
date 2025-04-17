@@ -103,24 +103,16 @@ public class AppUserLogsHelper : LogService
     public Log GetLogModel(LogModel model)
     {
         bool sts = false;
-        //if (!string.IsNullOrWhiteSpace(model.ResBody))
-        //{
-        //    using (JsonDocument doc = JsonDocument.Parse(model.ResBody))
-        //    {
-        //        JsonElement root = doc.RootElement;
 
-        //        if (root.ValueKind == JsonValueKind.Object)
+        //if (!model.IsExceptionFromResponse && !model.IsExceptionFromRequest)
+        //{
+        //    if (!string.IsNullOrWhiteSpace(model.ResBody))
+        //    {
+        //        using (JsonDocument doc = JsonDocument.Parse(model.ResBody))
         //        {
+        //            JsonElement root = doc.RootElement;
+
         //            if (root.TryGetProperty("status", out JsonElement statusElement) &&
-        //                statusElement.TryGetProperty("isSuccess", out JsonElement isSuccessElement))
-        //            {
-        //                sts = isSuccessElement.GetBoolean();
-        //            }
-        //        }
-        //        else if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
-        //        {
-        //            var firstItem = root[0];
-        //            if (firstItem.TryGetProperty("status", out JsonElement statusElement) &&
         //                statusElement.TryGetProperty("isSuccess", out JsonElement isSuccessElement))
         //            {
         //                sts = isSuccessElement.GetBoolean();
@@ -129,20 +121,25 @@ public class AppUserLogsHelper : LogService
         //    }
         //}
 
-        if (!model.IsExceptionFromResponse && !model.IsExceptionFromRequest)
+        if (!model.IsExceptionFromResponse && !model.IsExceptionFromRequest && !string.IsNullOrWhiteSpace(model.ResBody))
         {
-            if (!string.IsNullOrWhiteSpace(model.ResBody))
+            try
             {
-                using (JsonDocument doc = JsonDocument.Parse(model.ResBody))
-                {
-                    JsonElement root = doc.RootElement;
+                using JsonDocument doc = JsonDocument.Parse(model.ResBody);
+                JsonElement root = doc.RootElement;
 
-                    if (root.TryGetProperty("status", out JsonElement statusElement) &&
-                        statusElement.TryGetProperty("isSuccess", out JsonElement isSuccessElement))
-                    {
-                        sts = isSuccessElement.GetBoolean();
-                    }
+                if (root.ValueKind == JsonValueKind.Object &&
+                    root.TryGetProperty("status", out JsonElement statusElement) &&
+                    statusElement.ValueKind == JsonValueKind.Object &&
+                    statusElement.TryGetProperty("isSuccess", out JsonElement isSuccessElement) &&
+                    (isSuccessElement.ValueKind == JsonValueKind.True || isSuccessElement.ValueKind == JsonValueKind.False))
+                {
+                    sts = isSuccessElement.GetBoolean();
                 }
+            }
+            catch (JsonException ex)
+            {
+                sts = false;
             }
         }
 
@@ -169,7 +166,6 @@ public class AppUserLogsHelper : LogService
         u.Status = sts;
         return u;
     }
-
     public async Task<bool> SaveAppUserLogs(Log log)
     {
         return await InsertLogsAsync(log);
