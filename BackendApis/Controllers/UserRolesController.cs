@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendApis.Controllers
 {
     [ApiController]
-    [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class UserRolesController : WebBaseController
@@ -23,139 +22,77 @@ namespace BackendApis.Controllers
         }
 
         [HttpGet("GetAllRoles")]
-        public async Task<ActionResult> GetAllRoles()
-        {
-            var result = await _roleUserService.GetAllRolesAsync();
-            return Ok(result);
+        public async Task<IActionResult> GetAllRoles() => Ok(await _roleUserService.GetAllRolesAsync());
 
+        [AllowAnonymous]
+        [HttpPost("CreateRole")]
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleViewModel model, CancellationToken cancellationToken)
+        {
+            var validation = this.ModelValidator(model);
+
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.CreateRoleAsync(model));
         }
 
-        [HttpPost]
-        [Route("CreateRole")]
-        public async Task<ActionResult> CreateRole([FromBody] CreateRoleViewModel model, CancellationToken cancellationToken)
+        [HttpGet("GetAllUsers")]
+        public async Task<IActionResult> GetAllUsers() => Ok(await _roleUserService.GetAllUsersAsync());
+
+        [HttpPost("AddUserToRole")]
+        //  [AllowAnonymous]
+        // [Authorize]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddUserToRole([FromBody] UserRoleViewModel model, CancellationToken cancellationToken)
         {
-            var modelValid = this.ModelValidator(model);
+            var validation = this.ModelValidator(model);
 
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.CreateRoleAsync(model);
-            return Ok(result);
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.AddUserToRoleAsync(model));
         }
 
-        [HttpGet]
-        [Route("GetAllUsers")]
-        public async Task<ActionResult> GetAllUsers()
+        [HttpPost("GetUserRoles")]
+        public async Task<IActionResult> GetUserRoles([FromBody] RoleViewModel model, CancellationToken cancellationToken)
         {
-            var result = await _roleUserService.GetAllUsersAsync();
-            return Ok(result);
+            var validation = this.ModelValidator(model);
+
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.GetUserRolesAsync(model));
         }
 
-        [HttpPost]
-        [Route("AddUserToRole")]
-        public async Task<ActionResult> AddUserToRole([FromBody] UserRoleViewModel model, CancellationToken cancellationToken)
+        [HttpPost("RemoveUserFromRole")]
+        public async Task<IActionResult> RemoveUserFromRole([FromBody] UserRoleViewModel model, CancellationToken cancellationToken)
         {
-            var modelValid = this.ModelValidator(model);
+            var validation = this.ModelValidator(model);
 
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.AddUserToRoleAsync(model);
-            return Ok(result);
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.RemoveUserFromRoleAsync(model));
         }
 
-        [HttpGet]
-        [Route("GetUserRoles")]
-        public async Task<ActionResult> GetUserRoles([FromBody] RoleViewModel model, CancellationToken cancellationToken)
+        [HttpPost("GetAllClaims")]
+        public async Task<IActionResult> GetAllClaims([FromBody] RoleViewModel model, CancellationToken cancellationToken)
         {
-            var modelValid = this.ModelValidator(model);
+            var validation = this.ModelValidator(model);
 
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.GetUserRolesAsync(model);
-            return Ok(result);
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.GetAllClaimsAsync(model));
         }
 
-        [HttpPost]
-        [Route("RemoveUserFromRole")]
-        public async Task<ActionResult> RemoveUserFromRole([FromBody] UserRoleViewModel model, CancellationToken cancellationToken)
+        [HttpPost("AddClaimToUser")]
+        public async Task<IActionResult> AddClaimToUser([FromBody] ClaimViewModel model, CancellationToken cancellationToken)
         {
-            var modelValid = this.ModelValidator(model);
+            var validation = this.ModelValidator(model);
 
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.RemoveUserFromRoleAsync(model);
-            return Ok(result);
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.AddClaimToUserAsync(model));
         }
 
-        [HttpGet]
-        [Route("GetAllClaims")]
-        public async Task<ActionResult> GetAllClaims([FromBody] RoleViewModel model, CancellationToken cancellationToken)
+        [HttpPost("RemoveClaims")]
+        public async Task<IActionResult> RemoveClaims([FromBody] RoleViewModel model, CancellationToken cancellationToken)
         {
-            var modelValid = this.ModelValidator(model);
+            var validation = this.ModelValidator(model);
 
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.GetAllClaimsAsync(model);
-            return Ok(result);
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.RemoveClaimsAsync(model));
         }
 
-        [HttpPost]
-        [Route("AddClaimToUser")]
-        public async Task<ActionResult> AddClaimToUser([FromBody] ClaimViewModel model, CancellationToken cancellationToken)
+        [HttpPost("RemoveClaim")]
+        public async Task<IActionResult> RemoveClaim([FromBody] ClaimViewModel model, CancellationToken cancellationToken)
         {
-            var modelValid = this.ModelValidator(model);
+            var validation = this.ModelValidator(model);
 
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.AddClaimToUserAsync(model);
-            return Ok(result);
-        }
-
-        [HttpPost]
-        [Route("RemoveClaims")]
-        public async Task<ActionResult> RemoveClaims([FromBody] RoleViewModel model, CancellationToken cancellationToken)
-        {
-            var modelValid = this.ModelValidator(model);
-
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.RemoveClaimsAsync(model);
-            return Ok(result);
-        }
-
-        [HttpPost]
-        [Route("RemoveClaim")]
-        public async Task<ActionResult> RemoveClaim([FromBody] ClaimViewModel model, CancellationToken cancellationToken)
-        {
-            var modelValid = this.ModelValidator(model);
-
-            if (!modelValid.Status.IsSuccess)
-            {
-                return Ok(modelValid);
-            }
-
-            var result = await _roleUserService.RemoveClaimAsync(model);
-            return Ok(result);
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _roleUserService.RemoveClaimAsync(model));
         }
     }
 }

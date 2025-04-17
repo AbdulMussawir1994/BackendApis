@@ -269,7 +269,9 @@ public class EnterpriseCustomMiddleware
 
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var status = exception switch
+        if (context.Response.HasStarted) return;
+
+        var code = exception switch
         {
             ArgumentNullException => HttpStatusCode.BadRequest,
             UnauthorizedAccessException => HttpStatusCode.Unauthorized,
@@ -280,23 +282,20 @@ public class EnterpriseCustomMiddleware
 
         var problem = new ProblemDetails
         {
-            Status = (int)status,
-            Type = $"https://httpstatuses.com/{(int)status}",
-            Title = status.ToString(),
+            Status = (int)code,
+            Type = $"https://httpstatuses.com/{(int)code}",
+            Title = code.ToString(),
             Extensions =
-            {
-                ["ErrorId"] = Guid.NewGuid().ToString(),
-                ["RequestPath"] = context.Request.Path,
-                ["RequestId"] = context.TraceIdentifier
-            }
+         {
+             ["ErrorId"] = Guid.NewGuid().ToString(),
+             ["RequestPath"] = context.Request.Path,
+             ["RequestId"] = context.TraceIdentifier
+         }
         };
 
-        context.Response.StatusCode = (int)status;
+        _logger.LogError(exception, "Error {ErrorId} on {Path}", problem.Extensions["ErrorId"], context.Request.Path);
+        context.Response.StatusCode = (int)code;
         context.Response.ContentType = "application/json";
-
-        _logger.LogError(exception, "Unhandled exception {ErrorId} at {Path} (Request ID: {RequestId})",
-            problem.Extensions["ErrorId"], context.Request.Path, context.TraceIdentifier);
-
         await context.Response.WriteAsJsonAsync(problem);
     }
 }

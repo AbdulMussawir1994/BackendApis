@@ -43,13 +43,15 @@ namespace DAL.RepositoryLayer.Repositories
             if (await _roleManager.RoleExistsAsync(model.RoleName))
                 return response.SetError("ERR-400", "Role already exists");
 
-            var result = await _roleManager.CreateAsync(new IdentityRole
+            var identityRole = new IdentityRole
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = model.RoleName,
                 NormalizedName = model.RoleName.ToUpperInvariant(),
                 ConcurrencyStamp = Guid.NewGuid().ToString()
-            });
+            };
+
+            var result = await _roleManager.CreateAsync(identityRole);
 
             return result.Succeeded
                 ? response.SetSuccess("SUCCESS-201", $"Role '{model.RoleName}' created")
@@ -69,10 +71,14 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
+
+            var roleExists = await _roleManager.RoleExistsAsync(model.RoleName);
+            if (!roleExists)
+                return response.SetError("ERR-404", $"Role '{model.RoleName}' does not exist");
 
             var result = await _userManager.AddToRoleAsync(user, model.RoleName);
 
@@ -85,7 +91,7 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<IEnumerable<string>>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
@@ -99,7 +105,7 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
@@ -115,7 +121,7 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<IEnumerable<Claim>>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
@@ -129,7 +135,7 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
@@ -141,11 +147,11 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetError("ERR-500", "Failed to add claim");
         }
 
-        public async Task<MobileResponse<string>> RemoveClaimsAsync(RoleViewModel mode)
+        public async Task<MobileResponse<string>> RemoveClaimsAsync(RoleViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(mode.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
@@ -162,7 +168,7 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            var user = await FindUser(model.Email);
 
             if (user is null)
                 return response.SetError("ERR-404", "User not found");
@@ -180,5 +186,10 @@ namespace DAL.RepositoryLayer.Repositories
                 ? response.SetSuccess("SUCCESS-200", "Claim removed")
                 : response.SetError("ERR-500", "Failed to remove claim");
         }
+
+        #region Private Methods
+        private async Task<AppUser?> FindUser(string email) => await _userManager.FindByEmailAsync(email);
+
+        #endregion
     }
 }
