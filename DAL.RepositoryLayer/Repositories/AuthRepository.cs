@@ -44,43 +44,53 @@ namespace DAL.RepositoryLayer.Repositories
             _validator = validator;
             _configHandler = configHandler;
         }
+
         public async Task<MobileResponse<LoginResponseModel>> LoginUser(LoginViewModel model, CancellationToken cancellationToken)
         {
             var response = new MobileResponse<LoginResponseModel>(_configHandler, "user");
 
-            var user = await _userManager.Users.AsNoTracking().FirstOrDefaultAsync(x => x.CNIC == model.CNIC, cancellationToken);
+            var user = await _userManager.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CNIC == model.CNIC, cancellationToken);
 
             if (user is null)
+            {
+                _logger.LogWarning("Login failed: CNIC {CNIC} not found.", model.CNIC);
                 return response.SetError("ERR-1001", "CNIC  is Invalid.");
+            }
 
-            if (!await _userManager.CheckPasswordAsync(user, model.Password))
+            var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
+            if (!isPasswordValid)
+            {
+                _logger.LogWarning("Login failed: Invalid password for CNIC {CNIC}.", model.CNIC);
                 return response.SetError("ERR-1003", "Password is Invalid.");
+            }
 
             // 2. Verify password and check account type
             //bool isVerified = await CheckPasswordAndAccountTypeAsync(user, model.Password, cancellationToken);
             // if (!isVerified)
             //    return response.SetError("ERR-1003", "Invalid password or account type not found.");
 
-            // var jwtToken = GenerateJwtToken(user.Id);
-            var jwtToken = GenerateSecureJwtToken(user.Id, "Admin", user.Email);
-            var encryptedJwtToken = _aesGcmEncryption.Encrypt(jwtToken);
+            // ✅ Get user's primary role dynamically
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles is null || !roles.Any())
+                roles = new List<string> { "User" };
 
-
+            // ✅ Generate encrypted JWT and refresh tokens
+            var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtToken(user.Id, roles, user.Email));
             var refreshToken = GenerateRefreshJwtToken(user.Id);
             var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
 
             await SaveRefreshToken(user, refreshToken);
 
-            var expiryMinutes = Convert.ToInt64(_configuration["JWTKey:TokenExpiryTimeInMinutes"]);
-            var tokenValidity = DateTime.UtcNow.AddMinutes(expiryMinutes);
-
-            _logger.LogInformation("User {CNIC} authenticated successfully.", model.CNIC);
+            var expiryMinutes = _configuration.GetValue<long>("JWTKey:TokenExpiryTimeInMinutes");
+            var tokenExpiry = DateTime.UtcNow.AddMinutes(expiryMinutes);
 
             return response.SetSuccess("SUCCESS-200", "Login Successful", new LoginResponseModel
             {
-                AccessToken = encryptedJwtToken,
+                AccessToken = jwtToken,
                 Id = user.Id,
-                ExpireTokenTime = tokenValidity,
+                ExpireTokenTime = tokenExpiry,
                 RefreshToken = encryptedRefreshToken
             });
         }
@@ -179,7 +189,11 @@ namespace DAL.RepositoryLayer.Repositories
             if (!string.Equals(user.RefreshGuid, decryptedToken, StringComparison.Ordinal))
                 return response.SetError("ERR-1005", "Refresh token is invalid or expired.");
 
-            var newAccessToken = GenerateSecureJwtToken(user.Id, "User", user.Email);
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles is null || !roles.Any())
+                roles = new List<string> { "User" };
+
+            var newAccessToken = GenerateSecureJwtToken(user.Id, roles, user.Email);
             var encryptedAccessToken = _aesGcmEncryption.Encrypt(newAccessToken);
 
             var newRefreshToken = GenerateRefreshJwtToken(user.Id);
@@ -258,29 +272,30 @@ namespace DAL.RepositoryLayer.Repositories
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        private string GenerateSecureJwtToken(string userId, string role, string email)
+        private string GenerateSecureJwtToken(string userId, IEnumerable<string> roles, string email)
         {
+            userId = string.IsNullOrWhiteSpace(userId) ? "0" : userId;
+
             var utcNow = DateTime.UtcNow;
             var secret = _configuration["JWTKey:Secret"];
             var issuer = _configuration["JWTKey:ValidIssuer"];
             var audience = _configuration["JWTKey:ValidAudience"];
-            var expiryMinutes = int.Parse(_configuration["JWTKey:TokenExpiryTimeInMinutes"] ?? "30");
-
-            if (string.IsNullOrEmpty(secret))
-                throw new InvalidOperationException("JWT secret is missing.");
+            var expiryMinutes = int.TryParse(_configuration["JWTKey:TokenExpiryTimeInMinutes"], out var minutes) ? minutes : 30;
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
             var claims = new List<Claim>
-    {
-        new(JwtRegisteredClaimNames.Sub, userId),
-        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-        new(ClaimTypes.NameIdentifier, userId),
-        new(ClaimTypes.Email, email),
-        new(ClaimTypes.Role, role)
-    };
+            {
+                new(JwtRegisteredClaimNames.Sub, userId),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                new(ClaimTypes.NameIdentifier, userId),
+                new(ClaimTypes.Email, email ?? string.Empty)
+            };
+
+            // ✅ Add all roles as separate claims
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -295,6 +310,44 @@ namespace DAL.RepositoryLayer.Repositories
             var token = handler.CreateToken(tokenDescriptor);
             return handler.WriteToken(token);
         }
+
+        //    private string GenerateSecureJwtToken(string userId, string role, string email)
+        //    {
+        //        var utcNow = DateTime.UtcNow;
+        //        var secret = _configuration["JWTKey:Secret"];
+        //        var issuer = _configuration["JWTKey:ValidIssuer"];
+        //        var audience = _configuration["JWTKey:ValidAudience"];
+        //        var expiryMinutes = int.Parse(_configuration["JWTKey:TokenExpiryTimeInMinutes"] ?? "30");
+
+        //        if (string.IsNullOrEmpty(secret))
+        //            throw new InvalidOperationException("JWT secret is missing.");
+
+        //        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+        //        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
+
+        //        var claims = new List<Claim>
+        //{
+        //    new(JwtRegisteredClaimNames.Sub, userId),
+        //    new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        //    new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+        //    new(ClaimTypes.NameIdentifier, userId),
+        //    new(ClaimTypes.Email, email),
+        //    new(ClaimTypes.Role, role)
+        //};
+
+        //        var tokenDescriptor = new SecurityTokenDescriptor
+        //        {
+        //            Subject = new ClaimsIdentity(claims),
+        //            Expires = utcNow.AddMinutes(expiryMinutes),
+        //            SigningCredentials = credentials,
+        //            Issuer = issuer,
+        //            Audience = audience
+        //        };
+
+        //        var handler = new JwtSecurityTokenHandler();
+        //        var token = handler.CreateToken(tokenDescriptor);
+        //        return handler.WriteToken(token);
+        //    }
 
         private string GenerateRefreshJwtToken(string userId)
         {

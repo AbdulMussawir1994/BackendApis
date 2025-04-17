@@ -83,6 +83,7 @@ namespace BackendApis.Controllers
 
         [HttpPost]
         [Authorize]
+        //  [Authorize(Roles = "Admin,Manager")]
         [Route("GetRefreshToken")]
         public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest model, CancellationToken cancellationToken)
         {

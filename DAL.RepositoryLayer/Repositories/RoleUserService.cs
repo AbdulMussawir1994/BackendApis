@@ -1,4 +1,5 @@
 ﻿using DAL.DatabaseLayer.Models;
+using DAL.DatabaseLayer.ViewModels.RoleModels;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
@@ -27,95 +28,127 @@ namespace DAL.RepositoryLayer.Repositories
         public async Task<MobileResponse<IEnumerable<IdentityRole>>> GetAllRolesAsync()
         {
             var response = new MobileResponse<IEnumerable<IdentityRole>>(_configHandler, serviceName: "Roles");
+
             var roles = _roleManager.Roles.ToList();
+
             return response.SetSuccess("SUCCESS-200", "Roles fetched", roles);
+
+            //    lockRecord = Task.Run(async () => await _IMakerCheckerService.LockCriteria(setUpForm, action, campaignId)).Result;
         }
 
-        public async Task<MobileResponse<string>> CreateRoleAsync(string roleName)
+        public async Task<MobileResponse<string>> CreateRoleAsync(CreateRoleViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
-            if (await _roleManager.RoleExistsAsync(roleName))
+
+            if (await _roleManager.RoleExistsAsync(model.RoleName))
                 return response.SetError("ERR-400", "Role already exists");
 
             var result = await _roleManager.CreateAsync(new IdentityRole
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = roleName,
-                NormalizedName = roleName.ToUpperInvariant(),
+                Name = model.RoleName,
+                NormalizedName = model.RoleName.ToUpperInvariant(),
                 ConcurrencyStamp = Guid.NewGuid().ToString()
             });
 
             return result.Succeeded
-                ? response.SetSuccess("SUCCESS-201", $"Role '{roleName}' created")
-                : response.SetError("ERR-500", $"Failed to create role '{roleName}'");
+                ? response.SetSuccess("SUCCESS-201", $"Role '{model.RoleName}' created")
+                : response.SetError("ERR-500", $"Failed to create role '{model.RoleName}'");
         }
 
         public async Task<MobileResponse<IEnumerable<IdentityUser>>> GetAllUsersAsync()
         {
             var response = new MobileResponse<IEnumerable<IdentityUser>>(_configHandler, serviceName: "Roles");
+
             var users = await Task.FromResult(_userManager.Users.ToList());
+
             return response.SetSuccess("SUCCESS-200", "Users fetched", users);
         }
 
-        public async Task<MobileResponse<string>> AddUserToRoleAsync(string email, string roleName)
+        public async Task<MobileResponse<string>> AddUserToRoleAsync(UserRoleViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
 
-            var result = await _userManager.AddToRoleAsync(user, roleName);
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
+
+            var result = await _userManager.AddToRoleAsync(user, model.RoleName);
+
             return result.Succeeded
-                ? response.SetSuccess("SUCCESS-200", $"User '{email}' added to role '{roleName}'")
+                ? response.SetSuccess("SUCCESS-200", $"User '{model.Email}' added to role '{model.RoleName}'")
                 : response.SetError("ERR-500", $"Failed to add user to role");
         }
 
-        public async Task<MobileResponse<IEnumerable<string>>> GetUserRolesAsync(string email)
+        public async Task<MobileResponse<IEnumerable<string>>> GetUserRolesAsync(RoleViewModel model)
         {
             var response = new MobileResponse<IEnumerable<string>>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
+
             var roles = await _userManager.GetRolesAsync(user);
+
             return response.SetSuccess("SUCCESS-200", "Roles fetched", roles);
         }
 
-        public async Task<MobileResponse<string>> RemoveUserFromRoleAsync(string email, string roleName)
+        public async Task<MobileResponse<string>> RemoveUserFromRoleAsync(UserRoleViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
 
-            var result = await _userManager.RemoveFromRoleAsync(user, roleName);
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
+
+            var result = await _userManager.RemoveFromRoleAsync(user, model.RoleName);
+
             return result.Succeeded
-                ? response.SetSuccess("SUCCESS-200", $"User '{email}' removed from role '{roleName}'")
+                ? response.SetSuccess("SUCCESS-200", $"User '{model.Email}' removed from role '{model.RoleName}'")
                 : response.SetError("ERR-500", "Failed to remove user from role");
         }
 
-        public async Task<MobileResponse<IEnumerable<Claim>>> GetAllClaimsAsync(string email)
+        public async Task<MobileResponse<IEnumerable<Claim>>> GetAllClaimsAsync(RoleViewModel model)
         {
             var response = new MobileResponse<IEnumerable<Claim>>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
+
             var claims = await _userManager.GetClaimsAsync(user);
+
             return response.SetSuccess("SUCCESS-200", "Claims fetched", claims);
         }
 
-        public async Task<MobileResponse<string>> AddClaimToUserAsync(string email, string claimType, string claimValue)
+        public async Task<MobileResponse<string>> AddClaimToUserAsync(ClaimViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
 
-            var result = await _userManager.AddClaimAsync(user, new Claim(claimType, claimValue));
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
+
+            var result = await _userManager.AddClaimAsync(user, new Claim(model.ClaimType, model.ClaimValue));
+
             return result.Succeeded
-                ? response.SetSuccess("SUCCESS-200", $"Claim added to user '{email}'")
+                ? response.SetSuccess("SUCCESS-200", $"Claim added to user '{model.Email}'")
                 : response.SetError("ERR-500", "Failed to add claim");
         }
 
-        public async Task<MobileResponse<string>> RemoveClaimsAsync(string email)
+        public async Task<MobileResponse<string>> RemoveClaimsAsync(RoleViewModel mode)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
+
+            var user = await _userManager.FindByEmailAsync(mode.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
 
             var claims = await _userManager.GetClaimsAsync(user);
             var result = await _userManager.RemoveClaimsAsync(user, claims);
@@ -125,17 +158,24 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetError("ERR-500", "Failed to remove claims");
         }
 
-        public async Task<MobileResponse<string>> RemoveClaimAsync(string email, string claimType, string claimValue)
+        public async Task<MobileResponse<string>> RemoveClaimAsync(ClaimViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null) return response.SetError("ERR-404", "User not found");
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
 
             var claims = await _userManager.GetClaimsAsync(user);
-            var claimToRemove = claims.FirstOrDefault(c => c.Type == claimType && c.Value == claimValue);
-            if (claimToRemove == null) return response.SetError("ERR-404", "Claim not found");
+
+            var claimToRemove = claims.FirstOrDefault(c => c.Type == model.ClaimType && c.Value == model.ClaimValue);
+
+            if (claimToRemove is null)
+                return response.SetError("ERR-404", "Claim not found");
 
             var result = await _userManager.RemoveClaimAsync(user, claimToRemove);
+
             return result.Succeeded
                 ? response.SetSuccess("SUCCESS-200", "Claim removed")
                 : response.SetError("ERR-500", "Failed to remove claim");

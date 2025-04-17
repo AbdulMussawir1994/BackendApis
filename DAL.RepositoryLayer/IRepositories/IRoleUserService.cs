@@ -1,4 +1,5 @@
-﻿using DAL.ServiceLayer.Models;
+﻿using DAL.DatabaseLayer.ViewModels.RoleModels;
+using DAL.ServiceLayer.Models;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 
@@ -7,13 +8,13 @@ namespace DAL.RepositoryLayer.IRepositories;
 public interface IRoleUserService
 {
     Task<MobileResponse<IEnumerable<IdentityRole>>> GetAllRolesAsync();
-    Task<MobileResponse<string>> CreateRoleAsync(string roleName);
+    Task<MobileResponse<string>> CreateRoleAsync(CreateRoleViewModel model);
     Task<MobileResponse<IEnumerable<IdentityUser>>> GetAllUsersAsync();
-    Task<MobileResponse<string>> AddUserToRoleAsync(string email, string roleName);
-    Task<MobileResponse<IEnumerable<string>>> GetUserRolesAsync(string email);
-    Task<MobileResponse<string>> RemoveUserFromRoleAsync(string email, string roleName);
-    Task<MobileResponse<IEnumerable<Claim>>> GetAllClaimsAsync(string email);
-    Task<MobileResponse<string>> AddClaimToUserAsync(string email, string claimType, string claimValue);
-    Task<MobileResponse<string>> RemoveClaimsAsync(string email);
-    Task<MobileResponse<string>> RemoveClaimAsync(string email, string claimType, string claimValue);
+    Task<MobileResponse<string>> AddUserToRoleAsync(UserRoleViewModel model);
+    Task<MobileResponse<IEnumerable<string>>> GetUserRolesAsync(RoleViewModel model);
+    Task<MobileResponse<string>> RemoveUserFromRoleAsync(UserRoleViewModel model);
+    Task<MobileResponse<IEnumerable<Claim>>> GetAllClaimsAsync(RoleViewModel model);
+    Task<MobileResponse<string>> AddClaimToUserAsync(ClaimViewModel model);
+    Task<MobileResponse<string>> RemoveClaimsAsync(RoleViewModel model);
+    Task<MobileResponse<string>> RemoveClaimAsync(ClaimViewModel model);
 }
