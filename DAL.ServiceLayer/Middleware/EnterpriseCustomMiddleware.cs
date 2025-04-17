@@ -53,14 +53,14 @@ public class EnterpriseCustomMiddleware
                 var token = DecryptToken(context);
                 if (string.IsNullOrEmpty(token))
                 {
-                    await CustomAuthorizationMiddleware.WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, "Authorization token is required.");
+                    await CustomAuthorizationMiddleware.WriteCustomResponse(context, StatusCodes.Status401Unauthorized, "ERR-401", "Authorization token is required.");
                     return;
                 }
 
                 var (principal, errorMessage) = ValidateTokenAndGetPrincipal(token);
                 if (principal == null)
                 {
-                    await CustomAuthorizationMiddleware.WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, errorMessage);
+                    await CustomAuthorizationMiddleware.WriteCustomResponse(context, StatusCodes.Status401Unauthorized, "ERR-401", errorMessage);
                     return;
                 }
 
@@ -72,7 +72,7 @@ public class EnterpriseCustomMiddleware
 
             if (!await TryDecryptRequest(context))
             {
-                await CustomAuthorizationMiddleware.WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, "Failed to decrypt request body.");
+                await CustomAuthorizationMiddleware.WriteCustomResponse(context, StatusCodes.Status401Unauthorized, "ERR-401", "Failed to decrypt request body.");
                 return;
             }
 
@@ -240,7 +240,7 @@ public class EnterpriseCustomMiddleware
             var errorJson = JsonConvert.SerializeObject(errorResponse);
 
             await originalBody.WriteAsync(Encoding.UTF8.GetBytes(errorJson));
-            return $"Exception : {ex.Message}";
+            return errorJson;
         }
     }
 
@@ -285,55 +285,74 @@ public class CustomAuthorizationMiddleware : IAuthorizationMiddlewareResultHandl
     {
         if (authorizeResult.Forbidden)
         {
-            await WriteErrorAndLog(context, StatusCodes.Status403Forbidden, "Access Denied. You do not have the required permission.");
+            await WriteCustomResponse(context, StatusCodes.Status403Forbidden, "ERR-403", "Access Denied. You do not have the required permission.");
             return;
         }
 
         if (authorizeResult.Challenged)
         {
-            await WriteErrorAndLog(context, StatusCodes.Status401Unauthorized, "Authentication required.");
+            await WriteCustomResponse(context, StatusCodes.Status401Unauthorized, "ERR-401", "Authentication required.");
             return;
         }
 
         await _defaultHandler.HandleAsync(next, context, policy, authorizeResult);
     }
 
-    public static async Task WriteErrorAndLog(HttpContext context, int statusCode, string message)
+    public static async Task WriteCustomResponse(HttpContext context, int statusCode, string errorCode, string message)
     {
         var logger = context.RequestServices.GetRequiredService<ILogger<CustomAuthorizationMiddleware>>();
         var configHandler = context.RequestServices.GetRequiredService<ConfigHandler>();
         var logHelper = new AppUserLogsHelper(configHandler);
 
-        var response = new { status = statusCode == StatusCodes.Status403Forbidden ? "Forbidden" : "Unauthorized", message };
-        var json = JsonConvert.SerializeObject(response);
+        // Build response using MobileResponse pattern
+        var response = new MobileResponse<object>(configHandler, "Application")
+            .SetError(errorCode, message);
 
+        // Create anonymous object with only required fields
+        var filteredResponse = new
+        {
+            response.LogId,
+            response.Content,
+            response.RequestDateTime,
+            response.Status
+        };
+
+        // Serialize only filtered structure
+        var json = JsonConvert.SerializeObject(filteredResponse);
+
+        // Write response
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(json);
 
-        var requestLog = await logHelper.GetLogRequest(context);
-        var routeData = context.GetRouteData().Values;
-
-        var logModel = logHelper.GetLogModel(new LogModel
+        try
         {
-            Method = context.Request.Method,
-            Path = context.Request.Path,
-            QueryString = context.Request.QueryString.ToString(),
-            StartTime = DateTime.UtcNow,
-            UserId = "0",
-            Action = routeData["action"]?.ToString(),
-            Controller = routeData["controller"]?.ToString(),
-            ReqBody = requestLog,
-            ResBody = json,
-            IsExceptionFromRequest = requestLog.Contains("Exception"),
-            IsExceptionFromResponse = json.Contains("Exception"),
-            RequestHeaders = logHelper.GetRequestHeaders(context.Request.Headers)
-        });
+            var requestLog = await logHelper.GetLogRequest(context);
+            var routeData = context.GetRouteData().Values;
 
-        logModel.ResponseBody = new LogsParamEncryption().CredentialsEncryptionResponse(logModel.ResponseBody);
-        _ = logHelper.SaveAppUserLogs(logModel);
+            var logModel = logHelper.GetLogModel(new LogModel
+            {
+                Method = context.Request.Method,
+                Path = context.Request.Path,
+                QueryString = context.Request.QueryString.ToString(),
+                StartTime = DateTime.UtcNow,
+                UserId = configHandler.UserId ?? "0",
+                Action = routeData["action"]?.ToString(),
+                Controller = routeData["controller"]?.ToString(),
+                ReqBody = requestLog,
+                ResBody = json,
+                IsExceptionFromRequest = requestLog.Contains("Exception"),
+                IsExceptionFromResponse = json.Contains("Exception"),
+                RequestHeaders = logHelper.GetRequestHeaders(context.Request.Headers)
+            });
 
-        logger.LogWarning("Authorization failure logged with status code {StatusCode}", statusCode);
+            logModel.ResponseBody = new LogsParamEncryption().CredentialsEncryptionResponse(logModel.ResponseBody);
+            _ = logHelper.SaveAppUserLogs(logModel);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to write log in WriteCustomResponse");
+        }
     }
 }
 
