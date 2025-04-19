@@ -159,42 +159,104 @@ public class EnterpriseCustomMiddleware
         return new AesGcmEncryption(_config).Decrypt(encryptedToken);
     }
 
+    //private (ClaimsPrincipal? Principal, string? ErrorMessage) ValidateTokenAndGetPrincipal(string jwt)
+    //{
+    //    if (string.IsNullOrWhiteSpace(jwt))
+    //        return (null, "JWT token is missing.");
+
+    //    var tokenHandler = new JwtSecurityTokenHandler();
+    //    var key = Encoding.UTF8.GetBytes(_config["JWTKey:Secret"]);
+
+    //    var validationParams = new TokenValidationParameters
+    //    {
+    //        ValidateIssuerSigningKey = true,
+    //        IssuerSigningKey = new SymmetricSecurityKey(key),
+    //        ValidateIssuer = true,
+    //        ValidateAudience = true,
+    //        ValidIssuer = _config["JWTKey:ValidIssuer"],
+    //        ValidAudience = _config["JWTKey:ValidAudience"],
+    //        RequireExpirationTime = true,
+    //        ClockSkew = TimeSpan.Zero // No leeway, strict expiration check
+    //    };
+
+    //    try
+    //    {
+    //        var principal = tokenHandler.ValidateToken(jwt, validationParams, out var validatedToken);
+
+    //        if (validatedToken is JwtSecurityToken jwtToken)
+    //        {
+    //            // Extra expiration validation (optional, for explicit logic)
+    //            var expClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp);
+    //            if (expClaim != null && long.TryParse(expClaim.Value, out var expUnix))
+    //            {
+    //                var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+    //                if (expirationTime < DateTime.UtcNow)
+    //                    return (null, "Token has been expired.");
+    //            }
+    //        }
+
+    //        return (principal, null);
+    //    }
+    //    catch (SecurityTokenExpiredException)
+    //    {
+    //        return (null, "JWT token has expired.");
+    //    }
+    //    catch (SecurityTokenInvalidSignatureException)
+    //    {
+    //        return (null, "JWT token signature is invalid.");
+    //    }
+    //    catch (SecurityTokenException ex)
+    //    {
+    //        return (null, $"JWT token validation failed: {ex.Message}");
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        return (null, $"Unexpected error: {ex.Message}");
+    //    }
+    //}
+
+    //for KMAC
     private (ClaimsPrincipal? Principal, string? ErrorMessage) ValidateTokenAndGetPrincipal(string jwt)
     {
         if (string.IsNullOrWhiteSpace(jwt))
             return (null, "JWT token is missing.");
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_config["JWTKey:Secret"]);
-
-        var validationParams = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidIssuer = _config["JWTKey:ValidIssuer"],
-            ValidAudience = _config["JWTKey:ValidAudience"],
-            RequireExpirationTime = true,
-            ClockSkew = TimeSpan.Zero // No leeway, strict expiration check
-        };
-
         try
         {
-            var principal = tokenHandler.ValidateToken(jwt, validationParams, out var validatedToken);
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var secret = _config["JWTKey:Secret"] ?? throw new InvalidOperationException("JWT secret is missing.");
+            var issuer = _config["JWTKey:ValidIssuer"];
+            var audience = _config["JWTKey:ValidAudience"];
+            var baseKey = Encoding.UTF8.GetBytes(secret);
 
-            if (validatedToken is JwtSecurityToken jwtToken)
+            var validationParameters = new TokenValidationParameters
             {
-                // Extra expiration validation (optional, for explicit logic)
-                var expClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp);
-                if (expClaim != null && long.TryParse(expClaim.Value, out var expUnix))
+                ValidateIssuerSigningKey = true,
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidIssuer = issuer,
+                ValidAudience = audience,
+                ValidateLifetime = true,
+                RequireExpirationTime = true,
+                ClockSkew = TimeSpan.Zero,
+                IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
                 {
-                    var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
-                    if (expirationTime < DateTime.UtcNow)
-                        return (null, "Token has been expired.");
-                }
-            }
+                    var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
+                    // Efficient extraction of critical claims
+                    var userId = jwt.Payload.TryGetValue("sub", out var sub) ? sub?.ToString() : null;
+                    var role = jwt.Payload.TryGetValue("role", out var r) ? r?.ToString() : null;
+                    var email = jwt.Payload.TryGetValue("email", out var e) ? e?.ToString() : null;
+
+                    if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(role) || string.IsNullOrWhiteSpace(email))
+                        return Enumerable.Empty<SecurityKey>();
+
+                    var derivedKey = DeriveKmacKey(userId, role, email, baseKey);
+                    return new[] { new SymmetricSecurityKey(derivedKey) };
+                }
+            };
+
+            var principal = tokenHandler.ValidateToken(jwt, validationParameters, out _);
             return (principal, null);
         }
         catch (SecurityTokenExpiredException)
@@ -213,6 +275,17 @@ public class EnterpriseCustomMiddleware
         {
             return (null, $"Unexpected error: {ex.Message}");
         }
+    }
+
+    private static byte[] DeriveKmacKey(string userId, string role, string email, byte[] secret)
+    {
+        var inputData = Encoding.UTF8.GetBytes($"{userId}|{role}|{email}");
+        var kmac = new Org.BouncyCastle.Crypto.Macs.KMac(256, secret);
+        kmac.Init(new Org.BouncyCastle.Crypto.Parameters.KeyParameter(secret));
+        kmac.BlockUpdate(inputData, 0, inputData.Length);
+        var output = new byte[kmac.GetMacSize()];
+        kmac.DoFinal(output, 0);
+        return output;
     }
 
     private async Task<bool> DecryptRequest(HttpRequest request, string key)

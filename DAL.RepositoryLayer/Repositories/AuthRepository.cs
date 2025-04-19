@@ -79,7 +79,8 @@ namespace DAL.RepositoryLayer.Repositories
 
             // ✅ Generate encrypted JWT and refresh tokens
             //var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtToken(user.Id, roles, user.Email));
-            var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtTokenWithReact(user.Id, user.Email));
+            //  var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtTokenWithReact(user.Id, user.Email));
+            var jwtToken = _aesGcmEncryption.Encrypt(GenerateKmacJwtToken(user.Id, "User", user.Email));
             //   var jwtToken = GenerateSecureJwtToken(user.Id, roles, user.Email);
             var refreshToken = _aesGcmEncryption.Encrypt(GenerateRefreshKmacJwtToken(user.Id));
             //var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
@@ -475,25 +476,21 @@ namespace DAL.RepositoryLayer.Repositories
             var secret = _configuration["JWTKey:Secret"] ?? throw new InvalidOperationException("JWT secret is missing.");
             var keyBytes = Encoding.UTF8.GetBytes(secret);
 
-            var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, userId),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new(ClaimTypes.NameIdentifier, userId),
-            new(ClaimTypes.Email, email),
-            new(ClaimTypes.Role, role)
-        };
+            // Derive HMAC key using KMAC256
+            var derivedKey = DeriveKmacKey(userId, role, email, keyBytes);
 
-            // Use KMAC256 to derive the HMAC key securely
-            var kmac = new KMac(256, keyBytes);
-            kmac.Init(new KeyParameter(keyBytes));
-            kmac.BlockUpdate(Encoding.UTF8.GetBytes(userId + role + email), 0, userId.Length + role.Length + email.Length);
-            var macOutput = new byte[kmac.GetMacSize()];
-            kmac.DoFinal(macOutput, 0);
-
-            var signingKey = new SymmetricSecurityKey(macOutput);
+            var signingKey = new SymmetricSecurityKey(derivedKey);
             var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha512);
+
+            var claims = new List<Claim>
+    {
+        new(JwtRegisteredClaimNames.Sub, userId),
+        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+        new(ClaimTypes.NameIdentifier, userId),
+        new(ClaimTypes.Email, email),
+        new(ClaimTypes.Role, role)
+    };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -507,6 +504,17 @@ namespace DAL.RepositoryLayer.Repositories
             var handler = new JwtSecurityTokenHandler();
             var token = handler.CreateToken(tokenDescriptor);
             return handler.WriteToken(token);
+        }
+
+        private static byte[] DeriveKmacKey(string userId, string role, string email, byte[] secret)
+        {
+            var inputData = Encoding.UTF8.GetBytes($"{userId}|{role}|{email}");
+            var kmac = new Org.BouncyCastle.Crypto.Macs.KMac(256, secret);
+            kmac.Init(new Org.BouncyCastle.Crypto.Parameters.KeyParameter(secret));
+            kmac.BlockUpdate(inputData, 0, inputData.Length);
+            var output = new byte[kmac.GetMacSize()];
+            kmac.DoFinal(output, 0);
+            return output;
         }
 
         #endregion
