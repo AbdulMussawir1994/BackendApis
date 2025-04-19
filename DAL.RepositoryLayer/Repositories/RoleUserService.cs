@@ -101,6 +101,20 @@ namespace DAL.RepositoryLayer.Repositories
             return response.SetSuccess("SUCCESS-200", "Roles fetched", roles);
         }
 
+        public async Task<MobileResponse<IEnumerable<string>>> GetUserRolesByIdAsync()
+        {
+            var response = new MobileResponse<IEnumerable<string>>(_configHandler, serviceName: "Roles");
+
+            var user = await _userManager.FindByIdAsync(_configHandler.UserId);
+
+            if (user is null)
+                return response.SetError("ERR-404", "User not found");
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return response.SetSuccess("SUCCESS-200", "Roles fetched", roles);
+        }
+
         public async Task<MobileResponse<string>> RemoveUserFromRoleAsync(UserRoleViewModel model)
         {
             var response = new MobileResponse<string>(_configHandler, serviceName: "Roles");

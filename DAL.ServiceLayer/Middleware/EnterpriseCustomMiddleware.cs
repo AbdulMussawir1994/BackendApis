@@ -176,17 +176,42 @@ public class EnterpriseCustomMiddleware
             ValidIssuer = _config["JWTKey:ValidIssuer"],
             ValidAudience = _config["JWTKey:ValidAudience"],
             RequireExpirationTime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero // No leeway, strict expiration check
         };
 
         try
         {
-            var principal = tokenHandler.ValidateToken(jwt, validationParams, out _);
+            var principal = tokenHandler.ValidateToken(jwt, validationParams, out var validatedToken);
+
+            if (validatedToken is JwtSecurityToken jwtToken)
+            {
+                // Extra expiration validation (optional, for explicit logic)
+                var expClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp);
+                if (expClaim != null && long.TryParse(expClaim.Value, out var expUnix))
+                {
+                    var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+                    if (expirationTime < DateTime.UtcNow)
+                        return (null, "Token has been expired.");
+                }
+            }
+
             return (principal, null);
+        }
+        catch (SecurityTokenExpiredException)
+        {
+            return (null, "JWT token has expired.");
+        }
+        catch (SecurityTokenInvalidSignatureException)
+        {
+            return (null, "JWT token signature is invalid.");
+        }
+        catch (SecurityTokenException ex)
+        {
+            return (null, $"JWT token validation failed: {ex.Message}");
         }
         catch (Exception ex)
         {
-            return (null, ex.Message);
+            return (null, $"Unexpected error: {ex.Message}");
         }
     }
 

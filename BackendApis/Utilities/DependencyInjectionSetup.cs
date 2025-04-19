@@ -298,6 +298,19 @@ public static class DependencyInjectionSetup
         services.AddResponseCaching();
         services.AddHttpContextAccessor();
         services.AddAuthorization();
+        //services.AddAuthorization(options =>
+        //{
+        //    options.AddPolicy("AdminPolicy", policy =>
+        //        policy.RequireClaim(ClaimTypes.Role, "Admin"));
+
+        //    options.AddPolicy("ManagerPolicy", policy =>
+        //        policy.RequireAssertion(context =>
+        //            context.User.HasClaim(c => c.Type == ClaimTypes.Role &&
+        //                (c.Value == "Manager" || c.Value == "Admin"))));
+
+        //    options.AddPolicy("PermissionPolicy", policy =>
+        //        policy.RequireClaim("permission", "Permission.Admin", "Permission.Manager"));
+        //});
 
         // Register OpenAPI services
         services.AddOpenApi();

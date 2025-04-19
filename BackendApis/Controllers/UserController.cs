@@ -33,6 +33,20 @@ namespace BackendApis.Controllers
             });
         }
 
+        [Authorize(Policy = "AdminPolicy")]
+        [HttpGet("admin-only")]
+        public IActionResult GetAdminData()
+        {
+            return Ok("Only admins can access this.");
+        }
+
+        [Authorize(Policy = "PermissionPolicy")]
+        [HttpGet("with-permission")]
+        public IActionResult GetPermissionBasedData()
+        {
+            return Ok("Users with valid permission claim.");
+        }
+
         [HttpPost]
         [AllowAnonymous]
         [Route("LoginUser")]

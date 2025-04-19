@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
+using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -72,14 +73,17 @@ namespace DAL.RepositoryLayer.Repositories
             //    return response.SetError("ERR-1003", "Invalid password or account type not found.");
 
             // ✅ Get user's primary role dynamically
-            var roles = await _userManager.GetRolesAsync(user);
-            if (roles is null || !roles.Any())
-                roles = new List<string> { "User" };
+            //var roles = await _userManager.GetRolesAsync(user);
+            //if (roles is null || !roles.Any())
+            //    roles = new List<string> { "User" };
 
             // ✅ Generate encrypted JWT and refresh tokens
-            var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtToken(user.Id, roles, user.Email));
-            var refreshToken = GenerateRefreshJwtToken(user.Id);
-            var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
+            //var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtToken(user.Id, roles, user.Email));
+            var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtTokenWithReact(user.Id, user.Email));
+            //   var jwtToken = GenerateSecureJwtToken(user.Id, roles, user.Email);
+            var refreshToken = _aesGcmEncryption.Encrypt(GenerateRefreshKmacJwtToken(user.Id));
+            //var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
+            // var encryptedRefreshToken = refreshToken;
 
             await SaveRefreshToken(user, refreshToken);
 
@@ -91,7 +95,7 @@ namespace DAL.RepositoryLayer.Repositories
                 AccessToken = jwtToken,
                 Id = user.Id,
                 ExpireTokenTime = tokenExpiry,
-                RefreshToken = encryptedRefreshToken
+                RefreshToken = refreshToken
             });
         }
 
@@ -311,6 +315,39 @@ namespace DAL.RepositoryLayer.Repositories
             return handler.WriteToken(token);
         }
 
+        private string GenerateSecureJwtTokenWithReact(string userId, string email)
+        {
+            userId = string.IsNullOrWhiteSpace(userId) ? "0" : userId;
+
+            var utcNow = DateTime.UtcNow;
+            var secret = _configuration["JWTKey:Secret"];
+            var issuer = _configuration["JWTKey:ValidIssuer"];
+            var audience = _configuration["JWTKey:ValidAudience"];
+            var expiryMinutes = int.TryParse(_configuration["JWTKey:TokenExpiryTimeInMinutes"], out var minutes) ? minutes : 30;
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
+
+            var claims = new List<Claim>
+            {
+                  new(ClaimTypes.NameIdentifier, userId),
+                  new(ClaimTypes.Email, email ?? string.Empty)
+            };
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = utcNow.AddMinutes(expiryMinutes),
+                SigningCredentials = credentials,
+                Issuer = issuer,
+                Audience = audience,
+            };
+
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.CreateToken(tokenDescriptor);
+            return handler.WriteToken(token);
+        }
+
         //    private string GenerateSecureJwtToken(string userId, string role, string email)
         //    {
         //        var utcNow = DateTime.UtcNow;
@@ -360,7 +397,6 @@ namespace DAL.RepositoryLayer.Repositories
             {
                   new Claim(JwtRegisteredClaimNames.Sub, userId),
                    new Claim("type", "refresh"),
-                   new Claim(ClaimTypes.Role, "User")
             };
 
             var token = new JwtSecurityToken(
@@ -368,6 +404,48 @@ namespace DAL.RepositoryLayer.Repositories
                 audience: _configuration["JWTKey:ValidAudience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+                signingCredentials: signingCredentials
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public string GenerateRefreshKmacJwtToken(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("Invalid userId");
+
+            var utcNow = DateTime.UtcNow;
+            var issuer = _configuration["JWTKey:ValidIssuer"];
+            var audience = _configuration["JWTKey:ValidAudience"];
+            var expiryMinutes = int.TryParse(_configuration["JWTKey:RefreshTokenValidityInMinutes"], out var mins) ? mins : 60;
+
+            var secret = _configuration["JWTKey:Secret"] ?? throw new InvalidOperationException("JWT secret is missing.");
+            var keyBytes = Encoding.UTF8.GetBytes(secret);
+
+            // KMAC-based key derivation (recommended: use unique salt if available)
+            var kmac = new KMac(256, keyBytes);
+            var inputData = Encoding.UTF8.GetBytes($"refresh:{userId}");
+            kmac.Init(new KeyParameter(keyBytes));
+            kmac.BlockUpdate(inputData, 0, inputData.Length);
+
+            var macOutput = new byte[kmac.GetMacSize()];
+            kmac.DoFinal(macOutput, 0);
+
+            var signingKey = new SymmetricSecurityKey(macOutput);
+            var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha512);
+
+            var claims = new[]
+            {
+                  new Claim(JwtRegisteredClaimNames.Sub, userId),
+                  new Claim("type", "refresh")
+            };
+
+            var token = new JwtSecurityToken(
+                issuer: issuer,
+                audience: audience,
+                claims: claims,
+                expires: utcNow.AddMinutes(expiryMinutes),
                 signingCredentials: signingCredentials
             );
 
