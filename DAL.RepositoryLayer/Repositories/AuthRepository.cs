@@ -173,16 +173,7 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<RefreshTokenResponse>(_configHandler, "user");
 
-            string decryptedToken;
-            try
-            {
-                decryptedToken = _aesGcmEncryption.Decrypt(request.RefreshToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to decrypt refresh token.");
-                return response.SetError("ERR-1004", "Invalid refresh token format.");
-            }
+            string decryptedToken = _aesGcmEncryption.Decrypt(request.RefreshToken);
 
             var user = await _userManager.Users
                 .AsNoTracking()

@@ -3,33 +3,20 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Logging;
 
 namespace DAL.DatabaseLayer.DataContext;
 
 public class WebContextDb : IdentityDbContext<AppUser>
 {
 
-    private readonly ILogger<WebContextDb>? _logger;
-
-    public WebContextDb(DbContextOptions<WebContextDb> options, ILogger<WebContextDb>? logger = null) : base(options)
+    public WebContextDb(DbContextOptions<WebContextDb> options) : base(options)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var databaseCreator = Database.GetService<IDatabaseCreator>() as RelationalDatabaseCreator;
 
-        try
+        if (databaseCreator != null && !databaseCreator.CanConnect())
         {
-            var databaseCreator = Database.GetService<IDatabaseCreator>() as RelationalDatabaseCreator;
-            if (databaseCreator != null && !databaseCreator.CanConnect())
-            {
-                _logger?.LogWarning("🔹 Database not connected. Creating Database...");
-                databaseCreator.Create();
-                databaseCreator.CreateTables();
-                _logger?.LogInformation("✅ Database and tables created.");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "❌ Database initialization error.");
+            databaseCreator.Create();
+            databaseCreator.CreateTables();
         }
     }
 

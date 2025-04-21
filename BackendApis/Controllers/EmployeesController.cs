@@ -27,10 +27,10 @@ namespace BackendApis.Controllers
         public async Task<ActionResult> GetEmployeesEnumerable(CancellationToken cancellationToken) => Ok(await _employeeLayer.GetEmployeesListAsync(cancellationToken));
 
         [HttpGet("IAsyncEnumerable-List")]
-        public async Task<IActionResult> GetEmployeesAsync(CancellationToken cancellationToken) => Ok(await _employeeLayer.GetEmployeesListAsync2(cancellationToken));
+        public async Task<ActionResult> GetEmployeesAsync(CancellationToken cancellationToken) => Ok(await _employeeLayer.GetEmployeesListAsync2(cancellationToken));
 
         [HttpPost("CreateEmployee")]
-        public async Task<IActionResult> CreateEmployee([FromForm] CreateEmployeeViewModel model, CancellationToken cancellationToken)
+        public async Task<ActionResult> CreateEmployee([FromForm] CreateEmployeeViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
 
@@ -38,7 +38,7 @@ namespace BackendApis.Controllers
         }
 
         [HttpPut("UpdateEmployee")]
-        public async Task<IActionResult> UpdateEmployee([FromBody] CreateEmployeeViewModel model, CancellationToken cancellationToken)
+        public async Task<ActionResult> UpdateEmployee([FromForm] UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
 
@@ -46,15 +46,15 @@ namespace BackendApis.Controllers
         }
 
         [HttpGet("GetEmployeeById")]
-        public async Task<IActionResult> GetEmployeeByIdAsync(EmployeeIdViewModel model, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetEmployeeByIdAsync([FromBody] EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
 
-            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetIEmployeeByIdAsync(model, cancellationToken));
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeeByIdAsync(model, cancellationToken));
         }
 
         [HttpDelete("DeleteEmployee")]
-        public async Task<IActionResult> DeleteEmployeeAsync(EmployeeIdViewModel model, CancellationToken cancellationToken)
+        public async Task<ActionResult> DeleteEmployeeAsync([FromBody] EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
 
@@ -62,7 +62,7 @@ namespace BackendApis.Controllers
         }
 
         [HttpPatch("PatchEmployee")]
-        public async Task<IActionResult> PatchEmployeeAsync(EmployeeUpdateViewModel model, CancellationToken cancellationToken)
+        public async Task<ActionResult> PatchEmployeeAsync([FromBody] EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
 

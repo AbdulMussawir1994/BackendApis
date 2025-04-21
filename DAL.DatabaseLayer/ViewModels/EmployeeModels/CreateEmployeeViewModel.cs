@@ -9,16 +9,27 @@ public class CreateEmployeeViewModel
     public decimal Salary { get; set; }
     public IFormFile? CV { get; set; }
     public IFormFile? Image { get; set; }
-    public string ApplicationUserId { get; set; } = string.Empty;
+    public string ApplicationUserId { get; set; }
+}
+
+public class UpdateEmployeeViewModel
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Age { get; set; }
+    public decimal Salary { get; set; }
+    public IFormFile? CV { get; set; }
+    public IFormFile? Image { get; set; }
+    public string ApplicationUserId { get; set; }
 }
 
 public class EmployeeIdViewModel
 {
-    public int Id { get; set; }
+    public required Guid Id { get; set; }
 }
 
-public class EmployeeUpdateViewModel
+public class EmployeeByIdUpdateViewModel
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
+    public required Guid Id { get; set; }
+    public required string Name { get; set; }
 }

@@ -19,6 +19,6 @@ public class DataContextFactory : IDesignTimeDbContextFactory<WebContextDb>
 
         optionsBuilder.UseSqlServer(connectionString);
 
-        return new WebContextDb(optionsBuilder.Options, null);
+        return new WebContextDb(optionsBuilder.Options);
     }
 }

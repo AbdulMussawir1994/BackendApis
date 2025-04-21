@@ -1,7 +1,7 @@
 ﻿namespace DAL.DatabaseLayer.DTOs.EmployeeDto;
 
 public readonly record struct GetEmployeeDto(
-    int Id,
+    Guid Id,
     string UserName,
     string EmployeeName,
     int Age,
