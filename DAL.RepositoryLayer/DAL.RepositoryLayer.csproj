@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Mapster" Version="7.4.0" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Cryptography\Cryptography.csproj" />
     <ProjectReference Include="..\DAL.DatabaseLayer\DAL.DatabaseLayer.csproj" />
     <ProjectReference Include="..\DAL.ServiceLayer\DAL.ServiceLayer.csproj" />

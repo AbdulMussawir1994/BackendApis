@@ -64,6 +64,10 @@ try
         options.InstanceName = configuration["RedisConnection:InstanceName"];
     });
 
+    // Load configuration from appsettings.json
+    builder.Services.AddReverseProxy()
+        .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
     // 🔹 Register App Services
     builder.Services.RegisterServices(configuration);
     builder.Services.AddEnterpriseIdentity(builder.Configuration);

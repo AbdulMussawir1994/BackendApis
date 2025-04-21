@@ -20,4 +20,6 @@ public class AppUser : IdentityUser
     public string? DeviceId { get; set; }
     public bool? IsDeviceChanged { get; set; }
     public DateTime? LastLoginDate { get; set; }
+
+    public virtual ICollection<Employee> Employees { get; private set; } = new List<Employee>();
 }

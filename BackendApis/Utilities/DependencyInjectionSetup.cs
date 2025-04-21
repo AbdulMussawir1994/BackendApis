@@ -11,6 +11,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.SqlServer;
+using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -130,7 +131,13 @@ public static class DependencyInjectionSetup
         // 🧩 Dependency Injection (DI)
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IDataBaseAccess, DataBaseAccess>();
+
         services.AddScoped<IRoleUserService, RoleUserService>();
+
+        services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+        services.AddScoped<IEmployeeDbAccess, EmployeeDbAccess>();
+        services.AddScoped<IFileService, FileService>();
+
         services.AddScoped<CustomUserManager>();
 
         // Register custom encryption utility as Singleton
@@ -283,8 +290,9 @@ public static class DependencyInjectionSetup
             });
         });
 
-        // 📦 Mapster Mapping
-        //  TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
+        //📦 Mapster Mapping
+        TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
+        services.AddSingleton(new MapsterProfile());
 
         // ⚙️ API Behavior (ModelState)
         services.Configure<ApiBehaviorOptions>(options =>

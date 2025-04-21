@@ -55,4 +55,6 @@ public class WebContextDb : IdentityDbContext<AppUser>
                   .HasDefaultValueSql("NULL"); // Ensures first-time NULL
         });
     }
+
+    public DbSet<Employee> Employees => Set<Employee>();
 }
