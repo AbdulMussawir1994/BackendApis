@@ -63,7 +63,6 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<bool>(_configHandler, "employee");
             var result = await _employeeDbAccess.UpdateEmployee(model, cancellationToken);
-
             return result
                 ? response.SetSuccess("SUCCESS-200", "Employee updated successfully.", true)
                 : response.SetError("ERR-500", "Failed to update employee.", false);
@@ -73,7 +72,6 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<bool>(_configHandler, "employee");
             var result = await _employeeDbAccess.DeleteEmployee(model, cancellationToken);
-
             return result
                 ? response.SetSuccess("SUCCESS-200", "Employee deleted successfully.", true)
                 : response.SetError("ERR-404", "Employee not found.", false);
@@ -83,7 +81,6 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<GetEmployeeDto?>(_configHandler, "employee");
             var result = await _employeeDbAccess.GetEmployeeById(model, cancellationToken);
-
             return result != null
                 ? response.SetSuccess("SUCCESS-200", "Employee fetched successfully.", result)
                 : response.SetError("ERR-404", "Employee not found.");
@@ -93,10 +90,10 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<bool>(_configHandler, "employee");
             var result = await _employeeDbAccess.PatchEmployee(model, cancellationToken);
-
             return result
                 ? response.SetSuccess("SUCCESS-200", "Employee patched successfully.", true)
                 : response.SetError("ERR-404", "Employee not found.", false);
         }
+
     }
 }

@@ -54,9 +54,7 @@ namespace DAL.RepositoryLayer.DataAccess
         public async Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
             var employee = await _db.Employees.FindAsync([model.Id], cancellationToken);
-
-            if (employee is null)
-                return false;
+            if (employee is null) return false;
 
             employee.Name = model.Name;
             employee.Age = model.Age;
@@ -76,20 +74,16 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.Where(e => e.Id == model.Id && !e.IsDeleted).FirstOrDefaultAsync(cancellationToken);
-
-            if (employee is null)
-                return false;
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == model.Id && !e.IsDeleted, cancellationToken);
+            if (employee is null) return false;
 
             employee.IsDeleted = true;
             employee.UpdatedDate = DateTime.UtcNow;
 
             _db.Entry(employee).Property(e => e.IsDeleted).IsModified = true;
             _db.Entry(employee).Property(e => e.UpdatedDate).IsModified = true;
-            //_db.Employees.Update(employee);
             return await _db.SaveChangesAsync(cancellationToken) > 0;
         }
-
 
         public async Task<GetEmployeeDto?> GetEmployeeById(EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
@@ -112,9 +106,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees
-                .Where(e => e.Id == model.Id && !e.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == model.Id && !e.IsDeleted, cancellationToken);
 
             if (employee is null || string.Equals(employee.Name?.Trim(), model.Name, StringComparison.OrdinalIgnoreCase))
                 return false;

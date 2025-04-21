@@ -42,31 +42,36 @@ namespace BackendApis.Controllers
         {
             var validation = this.ModelValidator(model);
 
-            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.UpdateEmployeeAsync(model, cancellationToken));
+            return !validation.Status.IsSuccess
+                ? Ok(validation)
+                : Ok(await _employeeLayer.UpdateEmployeeAsync(model, cancellationToken));
         }
 
         [HttpGet("GetEmployeeById")]
         public async Task<ActionResult> GetEmployeeByIdAsync([FromBody] EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
-
-            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeeByIdAsync(model, cancellationToken));
+            return !validation.Status.IsSuccess
+                ? Ok(validation)
+                : Ok(await _employeeLayer.GetEmployeeByIdAsync(model, cancellationToken));
         }
 
         [HttpDelete("DeleteEmployee")]
         public async Task<ActionResult> DeleteEmployeeAsync([FromBody] EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
-
-            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.DeleteEmployeeByIdAsync(model, cancellationToken));
+            return !validation.Status.IsSuccess
+                ? Ok(validation)
+                : Ok(await _employeeLayer.DeleteEmployeeByIdAsync(model, cancellationToken));
         }
 
         [HttpPatch("PatchEmployee")]
         public async Task<ActionResult> PatchEmployeeAsync([FromBody] EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
-
-            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.PatchEmployeeAsync(model, cancellationToken));
+            return !validation.Status.IsSuccess
+                ? Ok(validation)
+                : Ok(await _employeeLayer.PatchEmployeeAsync(model, cancellationToken));
         }
     }
 }

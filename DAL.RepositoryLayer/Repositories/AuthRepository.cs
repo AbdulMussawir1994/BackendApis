@@ -118,7 +118,7 @@ namespace DAL.RepositoryLayer.Repositories
                 UserName = model.Username,
                 CNIC = model.CNIC,
                 PhoneNumber = model.MobileNo,
-                Email = model.Email,
+                Email = model.Email.Trim(),
                 DateCreated = DateTime.UtcNow
             };
 
