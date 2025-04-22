@@ -14,5 +14,6 @@ namespace DAL.RepositoryLayer.IRepositories
         Task<MobileResponse<IAsyncEnumerable<GetEmployeeDto>>> GetEmployeesListAsync2(ViewEmployeeModel model);
         Task<MobileResponse<bool>> PatchEmployeeAsync(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken);
         Task<MobileResponse<bool>> UpdateEmployeeAsync(UpdateEmployeeViewModel model, CancellationToken cancellationToken);
+        Task<MobileResponse<EmployeeListResponse>> GetEmployeesPaginationAsync(ViewEmployeeModel model, CancellationToken cancellationToken);
     }
 }

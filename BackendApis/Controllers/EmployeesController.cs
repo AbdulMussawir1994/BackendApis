@@ -29,6 +29,14 @@ namespace BackendApis.Controllers
             return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesList(model, cancellationToken));
         }
 
+        [HttpPost("IEnumerable-List")]
+        public async Task<ActionResult> GetEmployeesPagination([FromBody] ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            var validation = this.ModelValidator(model);
+
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken));
+        }
+
         [HttpGet("IQueryable-List")]
         public async Task<ActionResult> GetEmployeesEnumerable([FromBody] ViewEmployeeModel model)
         {

@@ -47,7 +47,43 @@ public class WebContextDb : IdentityDbContext<AppUser>
 
         //builder.Entity<Employee>()
         //    .HasQueryFilter(emp => emp.IsActive);
+
+        builder.Entity<UserNotification>(entity =>
+        {
+            entity.Property(e => e.CreatedBy).HasMaxLength(450);
+
+            entity.Property(e => e.CreatedDate).HasColumnType("datetime");
+
+            entity.Property(e => e.DeletedBy).HasMaxLength(450);
+
+            entity.Property(e => e.DeletedDate).HasColumnType("datetime");
+
+            entity.Property(e => e.DeviceId)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+
+            entity.Property(e => e.DeviceToken)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+
+            entity.Property(e => e.ModifiedBy).HasMaxLength(450);
+
+            entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
+
+            entity.Property(e => e.NotificationTime).HasColumnType("datetime");
+
+            entity.Property(e => e.ReadCount).HasDefaultValueSql("((0))");
+
+            entity.Property(e => e.UserId).HasMaxLength(450);
+
+            entity.HasOne(d => d.Notification)
+                .WithMany(p => p.UserNotifications)
+                .HasForeignKey(d => d.NotificationId)
+                .HasConstraintName("FK_UserNotifications_Master.Notifications");
+        });
     }
 
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<MasterNotification> MasterNotifications => Set<MasterNotification>();
 }

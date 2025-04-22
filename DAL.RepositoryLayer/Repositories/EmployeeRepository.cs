@@ -38,6 +38,17 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetError("ERR-404", "No employees found.", Enumerable.Empty<GetEmployeeDto>());
         }
 
+        public async Task<MobileResponse<EmployeeListResponse>> GetEmployeesPaginationAsync(ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<EmployeeListResponse>(_configHandler, "employee");
+
+            var result = await _employeeDbAccess.GetEmployeesCount(model, cancellationToken);
+
+            return result.List.Any()
+                ? response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", result)
+                : response.SetError("ERR-404", "No employees found.", new EmployeeListResponse());
+        }
+
         public async Task<MobileResponse<IAsyncEnumerable<GetEmployeeDto>>> GetEmployeesListAsync2(ViewEmployeeModel model)
         {
             var response = new MobileResponse<IAsyncEnumerable<GetEmployeeDto>>(_configHandler, "employee");

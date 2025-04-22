@@ -80,6 +80,42 @@ namespace DAL.RepositoryLayer.DataAccess
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<EmployeeListResponse> GetEmployeesCount(ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            if (model.PageSize <= 0 || model.PageNumber <= 0)
+                return new EmployeeListResponse();
+
+            var query = _db.Employees
+                .AsNoTracking()
+                .Where(e => e.IsActive)
+                .Include(e => e.ApplicationUser)
+                .AsSplitQuery();
+
+            int totalCount = await query.CountAsync(cancellationToken);
+
+            var employees = await query
+                .OrderBy(e => e.Id)
+                .Skip((model.PageNumber - 1) * model.PageSize)
+                .Take(model.PageSize)
+                .Select(e => new GetEmployeeDto
+                {
+                    Id = e.Id.ToString(),
+                    EmployeeName = e.Name,
+                    Age = e.Age,
+                    Salary = e.Salary,
+                    Image = e.ImageUrl,
+                    AppUserId = e.ApplicationUserId,
+                    UserName = e.ApplicationUser.UserName
+                })
+                .ToListAsync(cancellationToken);
+
+            return new EmployeeListResponse
+            {
+                List = employees,
+                TotalRecords = totalCount
+            };
+        }
+
         public IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(ViewEmployeeModel model)
         {
             if (model.PageSize <= 0 || model.PageNumber <= 0)

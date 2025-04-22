@@ -38,8 +38,8 @@ namespace BackendApis.Controllers
 
         [HttpPost("AddUserToRole")]
         //  [AllowAnonymous]
-        // [Authorize]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
+        // [Authorize(Roles = "Admin")]
         public async Task<ActionResult> AddUserToRole([FromBody] UserRoleViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);

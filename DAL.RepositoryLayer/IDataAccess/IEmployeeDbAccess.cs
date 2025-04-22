@@ -13,5 +13,6 @@ namespace DAL.RepositoryLayer.IDataAccess
         Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken);
         Task<GetEmployeeDto?> GetEmployeeById(EmployeeIdViewModel model, CancellationToken cancellationToken);
         Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken);
+        Task<EmployeeListResponse> GetEmployeesCount(ViewEmployeeModel model, CancellationToken cancellationToken);
     }
 }
