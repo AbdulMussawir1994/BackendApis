@@ -9,6 +9,7 @@ namespace DAL.RepositoryLayer.IDataAccess
         Task<bool> FindEmailAsync(string email, CancellationToken cancellationToken);
         Task<bool> FindCNICAsync(string cnic, CancellationToken cancellationToken);
         Task<bool> FindMobileAsync(string mobile, CancellationToken cancellationToken);
+        Task<bool> InActivateUserAsync(AppUser user, CancellationToken cancellationToken);
 
         Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken);
     }

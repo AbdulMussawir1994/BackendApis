@@ -18,35 +18,39 @@ namespace DAL.RepositoryLayer.Repositories
             _employeeDbAccess = employeeDbAccess;
         }
 
-        public Task<MobileResponse<IQueryable<GetEmployeeDto>>> GetEmployeesListAsync(CancellationToken cancellationToken)
+        public Task<MobileResponse<IQueryable<GetEmployeeDto>>> GetEmployeesListAsync(ViewEmployeeModel model)
         {
             var response = new MobileResponse<IQueryable<GetEmployeeDto>>(_configHandler, "employee");
-            var result = _employeeDbAccess.GetEmployees(cancellationToken);
+            var result = _employeeDbAccess.GetEmployees(model);
 
             return Task.FromResult(result.Any()
                 ? response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", result)
                 : response.SetError("ERR-404", "No employees found."));
         }
 
-        public async Task<MobileResponse<IEnumerable<GetEmployeeDto>>> GetEmployeesList(CancellationToken cancellationToken)
+        public async Task<MobileResponse<IEnumerable<GetEmployeeDto>>> GetEmployeesList(ViewEmployeeModel model, CancellationToken cancellationToken)
         {
             var response = new MobileResponse<IEnumerable<GetEmployeeDto>>(_configHandler, "employee");
-            var result = await _employeeDbAccess.GetEmployeesList(cancellationToken);
+            var result = await _employeeDbAccess.GetEmployeesList(model, cancellationToken);
 
             return result.Any()
                 ? response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", result)
-                : response.SetError("ERR-404", "No employees found.");
+                : response.SetError("ERR-404", "No employees found.", Enumerable.Empty<GetEmployeeDto>());
         }
 
-        public async Task<MobileResponse<IAsyncEnumerable<GetEmployeeDto>>> GetEmployeesListAsync2(CancellationToken cancellationToken)
+        public async Task<MobileResponse<IAsyncEnumerable<GetEmployeeDto>>> GetEmployeesListAsync2(ViewEmployeeModel model)
         {
             var response = new MobileResponse<IAsyncEnumerable<GetEmployeeDto>>(_configHandler, "employee");
-            var employeeStream = _employeeDbAccess.GetEmployeesIAsyncEnumerable(cancellationToken);
 
-            if (!await employeeStream.AnyAsync(cancellationToken))
-                return response.SetError("ERR-404", "No employees found.");
+            var employeeStream = _employeeDbAccess.GetEmployeesIAsyncEnumerable(model);
 
-            return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", employeeStream);
+            // Check if the stream has at least one record (early validation)
+            await foreach (var item in employeeStream)
+            {
+                return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", employeeStream);
+            }
+
+            return response.SetError("ERR-404", "No employees found.", AsyncEnumerable.Empty<GetEmployeeDto>());
         }
 
         public async Task<MobileResponse<bool>> CreateEmployeeAsync(CreateEmployeeViewModel model, CancellationToken cancellationToken)

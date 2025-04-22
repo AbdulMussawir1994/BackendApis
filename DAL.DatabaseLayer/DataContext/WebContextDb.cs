@@ -41,6 +41,12 @@ public class WebContextDb : IdentityDbContext<AppUser>
             entity.Property(e => e.UpdatedDate)
                   .HasDefaultValueSql("NULL"); // Ensures first-time NULL
         });
+
+        //builder.Entity<AppUser>()
+        //   .HasQueryFilter(user => user.IsActive);
+
+        //builder.Entity<Employee>()
+        //    .HasQueryFilter(emp => emp.IsActive);
     }
 
     public DbSet<Employee> Employees => Set<Employee>();

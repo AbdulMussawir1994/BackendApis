@@ -25,7 +25,7 @@ public class Employee
     [MaxLength(255)]
     public string? ImageUrl { get; set; } = string.Empty;
 
-    public bool IsDeleted { get; set; } = false;
+    public bool IsActive { get; set; } = true;
     public long? CreatedBy { get; set; }
 
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

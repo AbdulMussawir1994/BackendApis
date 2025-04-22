@@ -6,9 +6,9 @@ namespace DAL.RepositoryLayer.IDataAccess
     public interface IEmployeeDbAccess
     {
         Task<bool> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken);
-        Task<IEnumerable<GetEmployeeDto>> GetEmployeesList(CancellationToken cancellationToken);
-        IQueryable<GetEmployeeDto> GetEmployees(CancellationToken cancellationToken);
-        IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(CancellationToken cancellationToken);
+        Task<IEnumerable<GetEmployeeDto>> GetEmployeesList(ViewEmployeeModel model, CancellationToken cancellationToken);
+        IQueryable<GetEmployeeDto> GetEmployees(ViewEmployeeModel model);
+        IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(ViewEmployeeModel model);
         Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken);
         Task<GetEmployeeDto?> GetEmployeeById(EmployeeIdViewModel model, CancellationToken cancellationToken);

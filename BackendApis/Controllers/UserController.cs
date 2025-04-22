@@ -1,6 +1,7 @@
 ﻿using DAL.DatabaseLayer.ViewModels.AuthModels;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.BaseController;
+using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -109,6 +110,18 @@ namespace BackendApis.Controllers
             }
 
             var result = await _authRepository.RefreshTokenAsync(model, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpDelete("inactivate-user")]
+        [Authorize]
+        public async Task<ActionResult<MobileResponse<bool>>> InActivateUserAsync([FromBody] UserIdViewModel model, CancellationToken cancellationToken)
+        {
+            var validation = this.ModelValidator(model);
+            if (!validation.Status.IsSuccess)
+                return Ok(validation);
+
+            var result = await _authRepository.InActivateUserAsync(model, cancellationToken);
             return Ok(result);
         }
 

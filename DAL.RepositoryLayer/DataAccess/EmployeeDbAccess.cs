@@ -29,14 +29,22 @@ namespace DAL.RepositoryLayer.DataAccess
             return await _db.SaveChangesAsync(cancellationToken) > 0;
         }
 
-        public IQueryable<GetEmployeeDto> GetEmployees(CancellationToken cancellationToken) =>
-            _db.Employees
-                .AsNoTracking()
+        public IQueryable<GetEmployeeDto> GetEmployees(ViewEmployeeModel model)
+        {
+            if (model.PageSize <= 0 || model.PageNumber <= 0)
+                return Enumerable.Empty<GetEmployeeDto>().AsQueryable();
+
+            return _db.Employees
+                .AsNoTrackingWithIdentityResolution()
+                .Where(e => e.IsActive)
                 .Include(e => e.ApplicationUser)
                 .AsSplitQuery()
+                .OrderBy(e => e.Id) // Necessary for Skip/Take stability
+                .Skip((model.PageNumber - 1) * model.PageSize)
+                .Take(model.PageSize)
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id,
+                    Id = e.Id.ToString(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
@@ -44,12 +52,59 @@ namespace DAL.RepositoryLayer.DataAccess
                     AppUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 });
+        }
 
-        public async Task<IEnumerable<GetEmployeeDto>> GetEmployeesList(CancellationToken cancellationToken) =>
-            await GetEmployees(cancellationToken).ToListAsync(cancellationToken);
+        public async Task<IEnumerable<GetEmployeeDto>> GetEmployeesList(ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            if (model.PageSize <= 0 || model.PageNumber <= 0)
+                return Enumerable.Empty<GetEmployeeDto>();
 
-        public IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(CancellationToken cancellationToken) =>
-            GetEmployees(cancellationToken).AsAsyncEnumerable();
+            return await _db.Employees
+                .AsNoTracking()
+                .Where(x => x.IsActive)
+                .Include(e => e.ApplicationUser)
+                .AsSplitQuery() // Optional: use only if you include navigations
+                .OrderBy(e => e.Id) // Always apply ordering when using Skip/Take
+                .Select(e => new GetEmployeeDto
+                {
+                    Id = e.Id.ToString(),
+                    EmployeeName = e.Name,
+                    Age = e.Age,
+                    Salary = e.Salary,
+                    Image = e.ImageUrl,
+                    AppUserId = e.ApplicationUserId,
+                    UserName = e.ApplicationUser.UserName
+                })
+                .Skip((model.PageNumber - 1) * model.PageSize)
+                .Take(model.PageSize)
+                .ToListAsync(cancellationToken);
+        }
+
+        public IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(ViewEmployeeModel model)
+        {
+            if (model.PageSize <= 0 || model.PageNumber <= 0)
+                return AsyncEnumerable.Empty<GetEmployeeDto>();
+
+            return _db.Employees
+                .AsNoTrackingWithIdentityResolution()
+                .Where(e => e.IsActive)
+                .Include(e => e.ApplicationUser)
+                .AsSplitQuery()
+                .OrderBy(e => e.Id)
+                .Skip((model.PageNumber - 1) * model.PageSize)
+                .Take(model.PageSize)
+                .Select(e => new GetEmployeeDto
+                {
+                    Id = e.Id.ToString(),
+                    EmployeeName = e.Name,
+                    Age = e.Age,
+                    Salary = e.Salary,
+                    Image = e.ImageUrl,
+                    AppUserId = e.ApplicationUserId,
+                    UserName = e.ApplicationUser.UserName
+                })
+                .AsAsyncEnumerable();
+        }
 
         public async Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
@@ -74,13 +129,13 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == model.Id && !e.IsDeleted, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString() == model.Id && e.IsActive, cancellationToken);
             if (employee is null) return false;
 
-            employee.IsDeleted = true;
+            employee.IsActive = false;
             employee.UpdatedDate = DateTime.UtcNow;
 
-            _db.Entry(employee).Property(e => e.IsDeleted).IsModified = true;
+            _db.Entry(employee).Property(e => e.IsActive).IsModified = true;
             _db.Entry(employee).Property(e => e.UpdatedDate).IsModified = true;
             return await _db.SaveChangesAsync(cancellationToken) > 0;
         }
@@ -90,11 +145,11 @@ namespace DAL.RepositoryLayer.DataAccess
             return await _db.Employees
                 .AsNoTracking()
                 .Include(e => e.ApplicationUser)
-                .Where(e => e.Id == model.Id && !e.IsDeleted)
+                .Where(e => e.Id.ToString() == model.Id && !e.IsActive)
                 .AsSplitQuery()
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id,
+                    Id = e.Id.ToString(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
@@ -106,7 +161,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == model.Id && !e.IsDeleted, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString() == model.Id && e.IsActive, cancellationToken);
 
             if (employee is null || string.Equals(employee.Name?.Trim(), model.Name, StringComparison.OrdinalIgnoreCase))
                 return false;

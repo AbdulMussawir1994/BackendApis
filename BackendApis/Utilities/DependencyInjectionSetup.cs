@@ -21,6 +21,7 @@ using Microsoft.OpenApi.Models;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
+using Quartz;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -131,6 +132,7 @@ public static class DependencyInjectionSetup
         // 🧩 Dependency Injection (DI)
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IDataBaseAccess, DataBaseAccess>();
+        services.AddScoped<IJobService, JobService>();
 
         services.AddScoped<IRoleUserService, RoleUserService>();
 
@@ -300,8 +302,29 @@ public static class DependencyInjectionSetup
             options.SuppressModelStateInvalidFilter = true;
         });
 
+        // Load Quartz configuration from appsettings.json
+        services.AddQuartz(q =>
+        {
+            q.UseMicrosoftDependencyInjectionJobFactory(); // Inject scoped services in jobs
+
+            // Bind the entire "Quartz" section to Quartz options
+            configuration.GetSection("Quartz").Bind(q);
+
+            // Optionally register jobs and triggers here or via a separate method
+            var jobKey = new JobKey("SampleJob");
+            q.AddJob<SampleJob>(opts => opts.WithIdentity(jobKey));
+            q.AddTrigger(opts => opts
+                .ForJob(jobKey)
+                .WithIdentity("DatabaseJob-trigger")
+                .WithCronSchedule("0 */1 * ? * *")); // Every 1 minute
+        });
+
+        // Runs Quartz scheduler as background service
+        services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
         // 🧵 Misc Core Services
         services.ConfigureOptions<ConfigureSwaggerOptions>();
+        //  services.AddQuartzJobs();
         services.AddEndpointsApiExplorer();
         services.AddResponseCaching();
         services.AddHttpContextAccessor();

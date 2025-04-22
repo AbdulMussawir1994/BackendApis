@@ -115,7 +115,7 @@ namespace DAL.RepositoryLayer.Repositories
 
             var user = new AppUser
             {
-                UserName = model.Username,
+                UserName = model.Username.Trim(),
                 CNIC = model.CNIC,
                 PhoneNumber = model.MobileNo,
                 Email = model.Email.Trim(),
@@ -209,6 +209,21 @@ namespace DAL.RepositoryLayer.Repositories
                 RefreshToken = encryptedRefreshToken,
                 ExpireTokenTime = tokenValidity
             });
+        }
+
+        public async Task<MobileResponse<bool>> InActivateUserAsync(UserIdViewModel model, CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<bool>(_configHandler, "user");
+
+            var user = await _userManager.FindByIdAsync(model.Id);
+            if (user is null)
+                return response.SetError("ERR-1000", "User not found.", false);
+
+            var isUpdated = await _dataBaseAccess.InActivateUserAsync(user, cancellationToken);
+
+            return isUpdated
+                ? response.SetSuccess("SUCCESS-200", "User deactivated successfully.", true)
+                : response.SetError("ERR-1001", "Failed to deactivate user.", false);
         }
 
         #region Private Methods
@@ -507,6 +522,7 @@ namespace DAL.RepositoryLayer.Repositories
             kmac.DoFinal(output, 0);
             return output;
         }
+
 
         #endregion
     }

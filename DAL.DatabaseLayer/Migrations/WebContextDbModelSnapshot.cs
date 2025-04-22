@@ -60,6 +60,9 @@ namespace DAL.DatabaseLayer.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("IsDeviceChanged")
                         .HasColumnType("bit");
 
@@ -165,7 +168,7 @@ namespace DAL.DatabaseLayer.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")

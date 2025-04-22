@@ -10,3 +10,9 @@ public class LoginViewModel
     //  [RegularExpression(@"^\d{6}$", ErrorMessage = "Password must be a 6 digit number.")]
     public required string Password { get; set; }
 }
+
+
+public class UserIdViewModel
+{
+    public required string Id { get; set; }
+}

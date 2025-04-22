@@ -1,130 +1,90 @@
-﻿using Hangfire;
+﻿using DAL.RepositoryLayer.IRepositories;
+using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BackendApis.Controllers
+namespace BackendApis.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class JobsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class JobsController : ControllerBase
+    private readonly IBackgroundJobClient _backgroundJobClient;
+    private readonly IRecurringJobManager _recurringJobManager;
+    private readonly IJobService _jobService;
+    private readonly ILogger<JobsController> _logger;
+
+    public JobsController(
+        IBackgroundJobClient backgroundJobClient,
+        IRecurringJobManager recurringJobManager,
+        IJobService jobService,
+        ILogger<JobsController> logger)
     {
-
-        private readonly IBackgroundJobClient _backgroundJobClient;
-        private readonly IRecurringJobManager _recurringJobManager;
-        //private readonly IEmployeeLayer _employeeLayer;
-        private readonly IJobService _jobService;
-        private readonly ILogger<JobsController> _logger;
-
-        public JobsController(
-            IBackgroundJobClient backgroundJobClient,
-            IRecurringJobManager recurringJobManager,
-            IJobService jobService,
-            ILogger<JobsController> logger)
-        {
-            _backgroundJobClient = backgroundJobClient;
-            _recurringJobManager = recurringJobManager;
-            _jobService = jobService;
-            _logger = logger;
-            //     _employeeLayer = employeeLayer;
-        }
-
-        /// <summary>
-        /// Schedule automatic employee addition every 1 minute
-        /// </summary>
-        //[HttpPost("schedule-employee-job")]
-        //public IActionResult ScheduleEmployeeJob()
-        //{
-        //    _recurringJobManager.AddOrUpdate("auto-add-employee", () => _employeeLayer.AddEmployeeAsync(),
-        //        "* * * * *" // Runs every 1 minute
-        //    );
-
-        //    _logger.LogInformation("Recurring job scheduled to add an employee every 1 minute.");
-        //    return Ok("Employee addition job scheduled.");
-        //}
-
-        /// <summary>
-        /// Schedules a fire-and-forget job.
-        /// </summary>
-        [HttpPost("fire-and-forget")]
-        public IActionResult FireAndForgetJob()
-        {
-            _backgroundJobClient.Enqueue(() => _jobService.ProcessJobAsync("Fire-and-forget job executed"));
-            _logger.LogInformation("Fire-and-forget job scheduled.");
-            return Ok("Fire-and-forget job scheduled.");
-        }
-
-        /// <summary>
-        /// Schedules a delayed job to execute after 1 minute.
-        /// </summary>
-        [HttpPost("delayed")]
-        public IActionResult DelayedJob()
-        {
-            _backgroundJobClient.Schedule(() => _jobService.ProcessJobAsync("Delayed job executed"), TimeSpan.FromMinutes(1));
-            _logger.LogInformation("Delayed job scheduled.");
-            return Ok("Delayed job scheduled.");
-        }
-
-        /// <summary>
-        /// Schedules a recurring job that runs daily.
-        /// </summary>
-        [HttpPost("recurring")]
-        public IActionResult RecurringJob()
-        {
-            _recurringJobManager.AddOrUpdate(
-                "daily-recurring-job",
-                () => _jobService.ProcessJobAsync("Recurring job executed"),
-                Cron.Daily); // Runs every day at midnight
-            _logger.LogInformation("Recurring job scheduled.");
-            return Ok("Recurring job scheduled.");
-        }
-
-        /// <summary>
-        /// Removes a scheduled recurring job.
-        /// </summary>
-        [HttpDelete("recurring/{jobId}")]
-        public IActionResult DeleteRecurringJob(string jobId)
-        {
-            _recurringJobManager.RemoveIfExists(jobId);
-            _logger.LogInformation($"Recurring job '{jobId}' removed.");
-            return Ok($"Recurring job '{jobId}' removed.");
-        }
-
-        /// <summary>
-        /// Schedules a continuation job that runs after the parent job.
-        /// </summary>
-        [HttpPost("continuation")]
-        public IActionResult ContinuationJob()
-        {
-            var parentJobId = _backgroundJobClient.Enqueue(() => _jobService.ProcessJobAsync("Parent job executed"));
-            _backgroundJobClient.ContinueWith(parentJobId, () => _jobService.ProcessJobAsync("Continuation job executed"));
-            _logger.LogInformation("Continuation job scheduled.");
-            return Ok("Continuation job scheduled.");
-        }
+        _backgroundJobClient = backgroundJobClient;
+        _recurringJobManager = recurringJobManager;
+        _jobService = jobService;
+        _logger = logger;
     }
 
-    /// <summary>
-    /// Interface for job processing service.
-    /// </summary>
-    public interface IJobService
+    [HttpPost("fire-and-forget")]
+    public IActionResult FireAndForgetJob()
     {
-        Task ProcessJobAsync(string message);
+        _backgroundJobClient.Enqueue(() => _jobService.ProcessJobAsync("Fire-and-forget job executed"));
+        _logger.LogInformation("Scheduled: Fire-and-forget");
+        return Ok("Job scheduled.");
     }
 
-    /// <summary>
-    /// Implementation of job processing service.
-    /// </summary>
-    public class JobService : IJobService
+    [HttpPost("delayed")]
+    public IActionResult DelayedJob()
     {
-        private readonly ILogger<JobService> _logger;
+        _backgroundJobClient.Schedule(() => _jobService.ProcessJobAsync("Delayed job executed"), TimeSpan.FromMinutes(1));
+        _logger.LogInformation("Scheduled: Delayed job");
+        return Ok("Delayed job scheduled.");
+    }
 
-        public JobService(ILogger<JobService> logger)
-        {
-            _logger = logger;
-        }
+    [HttpPost("recurring")]
+    public IActionResult RecurringJob()
+    {
+        _recurringJobManager.AddOrUpdate(
+            nameof(RecurringJob),
+            () => _jobService.ProcessJobAsync("Daily recurring job executed"),
+            Cron.Daily);
+        _logger.LogInformation("Scheduled: Daily recurring job");
+        return Ok("Recurring job scheduled.");
+    }
 
-        public async Task ProcessJobAsync(string message)
+    [HttpDelete("recurring/{jobId}")]
+    public IActionResult DeleteRecurringJob(string jobId)
+    {
+        _recurringJobManager.RemoveIfExists(jobId);
+        _logger.LogInformation($"Removed: Recurring job {jobId}");
+        return Ok($"Recurring job '{jobId}' removed.");
+    }
+
+    [HttpPost("continuation")]
+    public IActionResult ContinuationJob()
+    {
+        var parentJobId = _backgroundJobClient.Enqueue(() => _jobService.ProcessJobAsync("Parent job executed"));
+        _backgroundJobClient.ContinueWith(parentJobId, () => _jobService.ProcessJobAsync("Continuation job executed"));
+        _logger.LogInformation("Scheduled: Continuation job");
+        return Ok("Continuation job scheduled.");
+    }
+
+    // 🆕 Monitor failed jobs
+    [HttpGet("stats")]
+    public IActionResult GetJobStats()
+    {
+        var stats = JobStorage.Current.GetMonitoringApi().GetStatistics();
+
+        return Ok(new
         {
-            _logger.LogInformation($"{message} at {DateTime.Now}");
-            await Task.Delay(500); // Simulate processing time
-        }
+            stats.Enqueued,
+            stats.Processing,
+            stats.Succeeded,
+            stats.Failed,
+            stats.Deleted,
+            stats.Scheduled,
+            stats.Recurring,
+            stats.Servers
+        });
     }
 }

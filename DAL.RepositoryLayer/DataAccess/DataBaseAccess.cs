@@ -47,5 +47,16 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public Task<bool> FindMobileAsync(string mobile, CancellationToken cancellationToken) =>
             _context.Users.AsNoTracking().AnyAsync(u => u.PhoneNumber == mobile, cancellationToken);
+
+        public async Task<bool> InActivateUserAsync(AppUser user, CancellationToken cancellationToken)
+        {
+            user.IsActive = false; // ❗ Set to false to mark inactive
+            user.UpdatedDate = DateTime.UtcNow;
+
+            _context.Entry(user).Property(e => e.IsActive).IsModified = true;
+            _context.Entry(user).Property(e => e.UpdatedDate).IsModified = true;
+
+            return await _context.SaveChangesAsync(cancellationToken) > 0;
+        }
     }
 }

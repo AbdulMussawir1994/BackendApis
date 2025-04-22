@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendApis.Controllers
 {
     [ApiController]
-    [AllowAnonymous]
+    [Authorize]
+    //  [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class EmployeesController : WebBaseController
@@ -20,14 +21,29 @@ namespace BackendApis.Controllers
             _employeeLayer = employeeRepository;
         }
 
-        [HttpGet("List")]
-        public async Task<ActionResult> GetEmployees(CancellationToken cancellationToken) => Ok(await _employeeLayer.GetEmployeesListAsync(cancellationToken));
+        [HttpPost("Enumerable-List")]
+        public async Task<ActionResult> GetEmployees([FromBody] ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            var validation = this.ModelValidator(model);
 
-        [HttpGet("Enumerable-List")]
-        public async Task<ActionResult> GetEmployeesEnumerable(CancellationToken cancellationToken) => Ok(await _employeeLayer.GetEmployeesListAsync(cancellationToken));
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesList(model, cancellationToken));
+        }
+
+        [HttpGet("IQueryable-List")]
+        public async Task<ActionResult> GetEmployeesEnumerable([FromBody] ViewEmployeeModel model)
+        {
+            var validation = this.ModelValidator(model);
+
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesListAsync(model));
+        }
 
         [HttpGet("IAsyncEnumerable-List")]
-        public async Task<ActionResult> GetEmployeesAsync(CancellationToken cancellationToken) => Ok(await _employeeLayer.GetEmployeesListAsync2(cancellationToken));
+        public async Task<ActionResult> GetEmployeesAsync([FromBody] ViewEmployeeModel model)
+        {
+            var validation = this.ModelValidator(model);
+
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesListAsync2(model));
+        }
 
         [HttpPost("CreateEmployee")]
         public async Task<ActionResult> CreateEmployee([FromForm] CreateEmployeeViewModel model, CancellationToken cancellationToken)
