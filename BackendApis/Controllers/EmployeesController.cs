@@ -88,7 +88,7 @@ namespace BackendApis.Controllers
                 : Ok(await _employeeLayer.GetEmployeeByIdAsync(model, cancellationToken));
         }
 
-        [HttpDelete("DeleteEmployee")]
+        [HttpDelete("Inactivate-Employee")]
         public async Task<ActionResult> DeleteEmployeeAsync([FromBody] EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);

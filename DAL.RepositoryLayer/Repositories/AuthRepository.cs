@@ -46,6 +46,25 @@ namespace DAL.RepositoryLayer.Repositories
             _configHandler = configHandler;
         }
 
+        public async Task<MobileResponse<IEnumerable<GetUsersDto>>> GetUsersAsync(CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<IEnumerable<GetUsersDto>>(_configHandler, "user");
+
+            var users = await _userManager.Users
+                .AsNoTracking()
+                .Select(x => new GetUsersDto
+                {
+                    Id = x.Id,
+                    UserName = x.UserName
+                })
+                .ToListAsync(cancellationToken);
+
+            return users.Any() ?
+                response.SetSuccess("SUCCESS-200", "Users fetched successfully.", users)
+              : response.SetError("ERR-1001", "No users available.", Enumerable.Empty<GetUsersDto>());
+        }
+
+
         public async Task<MobileResponse<LoginResponseModel>> LoginUser(LoginViewModel model, CancellationToken cancellationToken)
         {
             var response = new MobileResponse<LoginResponseModel>(_configHandler, "user");
@@ -522,7 +541,6 @@ namespace DAL.RepositoryLayer.Repositories
             kmac.DoFinal(output, 0);
             return output;
         }
-
 
         #endregion
     }

@@ -89,11 +89,11 @@ try
     //// 4. Routing
     app.UseRouting();
 
-    //// 5. Global Exception Handling / Custom middleware (e.g., exception handling, request context)
-    app.UseEnterpriseCustomMiddleware();
-
     //// 6. CORS Policy (before auth, especially if using tokens)
     app.UseCors("CorsPolicy");
+
+    //// 5. Global Exception Handling / Custom middleware (e.g., exception handling, request context)
+    app.UseEnterpriseCustomMiddleware();
 
     //// 7. Authentication & Authorization
     app.UseAuthentication();

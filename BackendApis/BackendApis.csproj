@@ -49,4 +49,9 @@
     <ProjectReference Include="..\DAL.ServiceLayer\DAL.ServiceLayer.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\cvs\" />
+    <Folder Include="wwwroot\images\" />
+  </ItemGroup>
+
 </Project>

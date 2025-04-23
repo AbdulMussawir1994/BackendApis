@@ -67,6 +67,13 @@ namespace DAL.RepositoryLayer.Repositories
         public async Task<MobileResponse<bool>> CreateEmployeeAsync(CreateEmployeeViewModel model, CancellationToken cancellationToken)
         {
             var response = new MobileResponse<bool>(_configHandler, "employee");
+
+            // Check if ApplicationUserId is "string" or not a valid GUID
+            if (string.Equals(model.ApplicationUserId, "string", StringComparison.OrdinalIgnoreCase) || !Guid.TryParse(model.ApplicationUserId, out _))
+            {
+                return response.SetError("ERR-1001", "Invalid application user ID.", false);
+            }
+
             var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);
 
             return result

@@ -1,4 +1,5 @@
-﻿using DAL.DatabaseLayer.ViewModels.AuthModels;
+﻿using DAL.DatabaseLayer.DTOs.AuthDto;
+using DAL.DatabaseLayer.ViewModels.AuthModels;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.BaseController;
 using DAL.ServiceLayer.Models;
@@ -113,7 +114,7 @@ namespace BackendApis.Controllers
             return Ok(result);
         }
 
-        [HttpDelete("inactivate-user")]
+        [HttpDelete("Inactivate-user")]
         [Authorize]
         public async Task<ActionResult<MobileResponse<bool>>> InActivateUserAsync([FromBody] UserIdViewModel model, CancellationToken cancellationToken)
         {
@@ -124,6 +125,11 @@ namespace BackendApis.Controllers
             var result = await _authRepository.InActivateUserAsync(model, cancellationToken);
             return Ok(result);
         }
+
+        [Authorize]
+        [HttpGet("GetUsers")]
+        public async Task<ActionResult<MobileResponse<GetUsersDto>>> GetUsers(CancellationToken cancellationToken)
+            => Ok(await _authRepository.GetUsersAsync(cancellationToken));
 
     }
 }
