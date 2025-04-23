@@ -217,25 +217,28 @@ public static class DependencyInjectionSetup
         {
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
-                // Partition by IP address to isolate abuse
-                var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                // Prefer User ID (if authenticated), fallback to IP
+                var userId = context.User.Identity?.IsAuthenticated == true
+                                                    ? context.User.Identity.Name ?? $"user-{Guid.NewGuid()}"
+                                                    : context.Connection.RemoteIpAddress?.ToString() ?? $"anon-{Guid.NewGuid()}";
 
                 return RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: ipAddress,
+                    partitionKey: userId,
                     factory: key => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 10, // max requests allowed
-                        Window = TimeSpan.FromMinutes(1), // per minute
+                        PermitLimit = 20, // e.g., 20 requests
+                        Window = TimeSpan.FromMinutes(1),
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 5 // buffer extra burst
+                        QueueLimit = 2
                     });
             });
 
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
             options.OnRejected = async (context, token) =>
             {
-                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                context.HttpContext.Response.Headers.RetryAfter = "60"; // optional Retry-After header
-                await context.HttpContext.Response.WriteAsync("Too many requests. Please try again after a minute.", token);
+                context.HttpContext.Response.Headers["Retry-After"] = "60";
+                await context.HttpContext.Response.WriteAsync("Too many requests for this user. Try again in 60 seconds.", token);
             };
         });
 
@@ -249,6 +252,19 @@ public static class DependencyInjectionSetup
         //        sliding.SegmentsPerWindow = 2;
         //        sliding.QueueLimit = 2;
         //        sliding.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        //    });
+        //});
+
+        //[Authorize]
+        //[EnableRateLimiting("authenticated-policy")]
+        //services.AddRateLimiter(options =>
+        //{
+        //    options.AddFixedWindowLimiter("authenticated-policy", opt =>
+        //    {
+        //        opt.PermitLimit = 20;
+        //        opt.Window = TimeSpan.FromMinutes(1);
+        //        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        //        opt.QueueLimit = 2;
         //    });
         //});
 

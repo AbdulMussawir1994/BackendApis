@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendApis.Controllers
 {
     [ApiController]
-    [Authorize]
-    //  [AllowAnonymous]
+    //[Authorize]
+    [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class EmployeesController : WebBaseController
@@ -37,7 +37,15 @@ namespace BackendApis.Controllers
             return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken));
         }
 
-        [HttpGet("IQueryable-List")]
+        [HttpGet("IEnumerable-List2")]
+        public async Task<ActionResult> GetEmployeesPagination2([FromQuery] ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            var validation = this.ModelValidator(model);
+
+            return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken));
+        }
+
+        [HttpPost("IQueryable-List")]
         public async Task<ActionResult> GetEmployeesEnumerable([FromBody] ViewEmployeeModel model)
         {
             var validation = this.ModelValidator(model);
@@ -45,7 +53,7 @@ namespace BackendApis.Controllers
             return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesListAsync(model));
         }
 
-        [HttpGet("IAsyncEnumerable-List")]
+        [HttpPost("IAsyncEnumerable-List")]
         public async Task<ActionResult> GetEmployeesAsync([FromBody] ViewEmployeeModel model)
         {
             var validation = this.ModelValidator(model);

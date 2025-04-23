@@ -75,31 +75,44 @@ try
 
     var app = builder.Build();
 
-    ////Configure Swagger
-    app.ConfigureSwagger();
+    //// 1. Swagger Configuration (should come first in dev/test)
+    app.ConfigureSwagger();       // Sets up Swagger services
+    app.MapOpenApi();             // Maps OpenAPI documents
 
-    app.MapOpenApi();
-
+    //// 2. Logging — Capture full pipeline including auth and middleware
     app.UseSerilogRequestLogging();
+
+    //// 3. HTTPS Redirect & Static files (before routing)
     app.UseHttpsRedirection();
     app.UseStaticFiles();
+
+    //// 4. Routing
     app.UseRouting();
-    app.UseCors("CorsPolicy");
 
-    app.UseRateLimiter(); // 👈 Apply rate limiter globally
-
-    //app.UseMiddleware<DecryptedJwtMiddleware>();
+    //// 5. Global Exception Handling / Custom middleware (e.g., exception handling, request context)
     app.UseEnterpriseCustomMiddleware();
 
+    //// 6. CORS Policy (before auth, especially if using tokens)
+    app.UseCors("CorsPolicy");
+
+    //// 7. Authentication & Authorization
     app.UseAuthentication();
     app.UseAuthorization();
 
+    //// 8. Rate Limiting — must be before authentication if scoped per user
+    app.UseRateLimiter();
+
+    //// 9. Response Caching
     app.UseResponseCaching();
+
+    //// 10. Hangfire Dashboard (only if needed)
     app.UseHangfireDashboard("/hangfire");
 
+    //// 11. Endpoint Mapping
     app.MapControllers();
     app.MapHangfireDashboard();
 
+    //// 12. Run the app
     app.Run();
 
 }
