@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -334,8 +333,18 @@ public class EnterpriseCustomMiddleware
             context.Response.ContentType = "application/json";
 
             var errorResponse = new MobileResponse<string>(_configHandler, "Application");
-            errorResponse.SetError("ERR-1003", "Internal Server Error.");
-            var errorJson = JsonConvert.SerializeObject(errorResponse);
+            errorResponse.SetError("ERR-1003", ex.InnerException.Message);
+
+            // Create anonymous object with only required fields
+            var filteredResponse = new
+            {
+                errorResponse.LogId,
+                errorResponse.Content,
+                errorResponse.RequestDateTime,
+                errorResponse.Status
+            };
+
+            var errorJson = JsonConvert.SerializeObject(filteredResponse);
 
             await originalBody.WriteAsync(Encoding.UTF8.GetBytes(errorJson));
             return errorJson;
@@ -344,8 +353,6 @@ public class EnterpriseCustomMiddleware
 
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        if (context.Response.HasStarted) return;
-
         var code = exception switch
         {
             ArgumentNullException => HttpStatusCode.BadRequest,
@@ -355,23 +362,29 @@ public class EnterpriseCustomMiddleware
             _ => HttpStatusCode.InternalServerError
         };
 
-        var problem = new ProblemDetails
+        var errorId = Guid.NewGuid().ToString();
+        var errorMessage = exception.InnerException?.Message ?? exception.Message;
+
+        // Custom response model
+        var errorResponse = new MobileResponse<string>(_configHandler, "Application");
+        errorResponse.SetError("ERR-1003", errorMessage);
+
+        // Filtered object to return (only selected fields)
+        var filteredResponse = new
         {
-            Status = (int)code,
-            Type = $"https://httpstatuses.com/{(int)code}",
-            Title = code.ToString(),
-            Extensions =
-         {
-             ["ErrorId"] = Guid.NewGuid().ToString(),
-             ["RequestPath"] = context.Request.Path,
-             ["RequestId"] = context.TraceIdentifier
-         }
+            errorResponse.LogId,
+            errorResponse.Content,
+            errorResponse.RequestDateTime,
+            errorResponse.Status
         };
 
-        _logger.LogError(exception, "Error {ErrorId} on {Path}", problem.Extensions["ErrorId"], context.Request.Path);
+        var errorJson = JsonConvert.SerializeObject(filteredResponse);
+
+        context.Response.Clear();
         context.Response.StatusCode = (int)code;
         context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(problem);
+
+        await context.Response.WriteAsync(errorJson, Encoding.UTF8);
     }
 }
 

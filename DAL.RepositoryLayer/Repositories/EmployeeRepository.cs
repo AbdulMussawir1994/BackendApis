@@ -69,7 +69,7 @@ namespace DAL.RepositoryLayer.Repositories
             var response = new MobileResponse<bool>(_configHandler, "employee");
 
             // Check if ApplicationUserId is "string" or not a valid GUID
-            if (string.Equals(model.ApplicationUserId, "string", StringComparison.OrdinalIgnoreCase) || !Guid.TryParse(model.ApplicationUserId, out _))
+            if (!Guid.TryParse(model.ApplicationUserId, out _))
             {
                 return response.SetError("ERR-1001", "Invalid application user ID.", false);
             }
