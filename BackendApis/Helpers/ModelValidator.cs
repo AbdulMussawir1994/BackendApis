@@ -69,13 +69,14 @@ public class CreateEmployeeValidator : AbstractValidator<CreateEmployeeViewModel
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
-            .MaximumLength(100).WithMessage("Name must not exceed 100 characters.");
+            .MinimumLength(6).WithMessage("Name must be at least 6 characters.")
+            .MaximumLength(50).WithMessage("Name must not exceed 50 characters.");
 
         RuleFor(x => x.Age)
             .InclusiveBetween(18, 65).WithMessage("Age must be between 18 and 65.");
 
         RuleFor(x => x.Salary)
-            .InclusiveBetween(0, 100_000_000).WithMessage("Salary must be between 0 and 100 million.");
+            .InclusiveBetween(0, 1_000_000).WithMessage("Salary must be between 0 and 1 million.");
 
         RuleFor(x => x.CV)
             .Must(HaveValidExtension).When(x => x.CV != null)

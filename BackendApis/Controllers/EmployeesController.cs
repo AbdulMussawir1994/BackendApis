@@ -79,7 +79,7 @@ namespace BackendApis.Controllers
                 : Ok(await _employeeLayer.UpdateEmployeeAsync(model, cancellationToken));
         }
 
-        [HttpGet("GetEmployeeById")]
+        [HttpPost("GetEmployeeById")]
         public async Task<ActionResult> GetEmployeeByIdAsync([FromBody] EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);

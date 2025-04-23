@@ -144,7 +144,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FindAsync([model.Id], cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString() == model.Id && e.IsActive, cancellationToken);
             if (employee is null) return false;
 
             employee.Name = model.Name;
@@ -181,7 +181,7 @@ namespace DAL.RepositoryLayer.DataAccess
             return await _db.Employees
                 .AsNoTracking()
                 .Include(e => e.ApplicationUser)
-                .Where(e => e.Id.ToString() == model.Id && !e.IsActive)
+                .Where(e => e.Id.ToString() == model.Id && e.IsActive)
                 .AsSplitQuery()
                 .Select(e => new GetEmployeeDto
                 {
