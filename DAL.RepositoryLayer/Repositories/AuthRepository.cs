@@ -46,24 +46,24 @@ namespace DAL.RepositoryLayer.Repositories
             _configHandler = configHandler;
         }
 
-        public async Task<MobileResponse<IEnumerable<GetUsersDto>>> GetUsersAsync(CancellationToken cancellationToken)
+        public MobileResponse<IEnumerable<GetUsersDto>> GetUsersAsync()
         {
             var response = new MobileResponse<IEnumerable<GetUsersDto>>(_configHandler, "user");
 
-            var users = await _userManager.Users
+            var users = _userManager.Users
                 .AsNoTracking()
-                .Select(x => new GetUsersDto
+                .Select(u => new GetUsersDto
                 {
-                    Id = x.Id,
-                    UserName = x.UserName
+                    Id = u.Id,
+                    UserName = u.UserName
                 })
-                .ToListAsync(cancellationToken);
+                .ToList(); // Synchronous, as Identity is typically in-memory
 
-            return users.Any() ?
-                response.SetSuccess("SUCCESS-200", "Users fetched successfully.", users)
-              : response.SetError("ERR-1001", "No users available.", Enumerable.Empty<GetUsersDto>());
+            if (users.Count == 0)
+                return response.SetError("ERR-1001", "No users available.", Enumerable.Empty<GetUsersDto>());
+
+            return response.SetSuccess("SUCCESS-200", "Users fetched successfully.", users);
         }
-
 
         public async Task<MobileResponse<LoginResponseModel>> LoginUser(LoginViewModel model, CancellationToken cancellationToken)
         {

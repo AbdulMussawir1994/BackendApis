@@ -128,8 +128,9 @@ namespace BackendApis.Controllers
 
         [Authorize]
         [HttpGet("GetUsers")]
-        public async Task<ActionResult<MobileResponse<GetUsersDto>>> GetUsers(CancellationToken cancellationToken)
-            => Ok(await _authRepository.GetUsersAsync(cancellationToken));
-
+        public MobileResponse<IEnumerable<GetUsersDto>> GetUsers()
+        {
+            return _authRepository.GetUsersAsync();
+        }
     }
 }

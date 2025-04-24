@@ -11,6 +11,6 @@ namespace DAL.RepositoryLayer.IRepositories
         ValueTask<MobileResponse<bool>> SavePasswordAsync(PasswordViewModel model);
         Task<MobileResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken);
         Task<MobileResponse<bool>> InActivateUserAsync(UserIdViewModel model, CancellationToken cancellationToken);
-        Task<MobileResponse<IEnumerable<GetUsersDto>>> GetUsersAsync(CancellationToken cancellationToken);
+        MobileResponse<IEnumerable<GetUsersDto>> GetUsersAsync();
     }
 }
