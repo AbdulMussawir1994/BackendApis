@@ -16,7 +16,7 @@ public sealed class MapsterProfile : TypeAdapterConfig
     private void RegisterEmployeeMappings()
     {
         TypeAdapterConfig<Employee, GetEmployeeDto>.NewConfig()
-            .Map(dest => dest.Id, src => src.Id)
+            .Map(dest => dest.Id, src => src.Id.ToString().ToLowerInvariant())
             .Map(dest => dest.EmployeeName, src => src.Name)
             .Map(dest => dest.Age, src => src.Age)
             .Map(dest => dest.Salary, src => src.Salary)

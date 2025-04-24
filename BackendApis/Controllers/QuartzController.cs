@@ -4,8 +4,9 @@ using Quartz;
 
 namespace BackendApis.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [ApiVersion("2.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class QuartzController : ControllerBase
     {
         private readonly ISchedulerFactory _schedulerFactory;

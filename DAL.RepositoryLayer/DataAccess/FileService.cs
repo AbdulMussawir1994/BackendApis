@@ -27,8 +27,8 @@ public class FileService : IFileService
 
         var safeOriginalName = GetSafeFileName(Path.GetFileNameWithoutExtension(file.FileName));
         var extension = Path.GetExtension(file.FileName);
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmssfff", CultureInfo.InvariantCulture);
-        var fileName = $"{safeOriginalName}_{timestamp}{extension}";
+        var timestamp = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var fileName = $"{safeOriginalName}-{timestamp}{extension}";
 
         var fullPath = Path.Combine(uploadPath, fileName);
 

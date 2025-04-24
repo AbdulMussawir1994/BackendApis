@@ -335,7 +335,6 @@ public class EnterpriseCustomMiddleware
             var errorResponse = new MobileResponse<string>(_configHandler, "Application");
             errorResponse.SetError("ERR-1003", ex.InnerException.Message);
 
-            // Create anonymous object with only required fields
             var filteredResponse = new
             {
                 errorResponse.LogId,
@@ -365,11 +364,9 @@ public class EnterpriseCustomMiddleware
         var errorId = Guid.NewGuid().ToString();
         var errorMessage = exception.InnerException?.Message ?? exception.Message;
 
-        // Custom response model
         var errorResponse = new MobileResponse<string>(_configHandler, "Application");
         errorResponse.SetError("ERR-1003", errorMessage);
 
-        // Filtered object to return (only selected fields)
         var filteredResponse = new
         {
             errorResponse.LogId,

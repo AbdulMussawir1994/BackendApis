@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35827.183 d17.12
+VisualStudioVersion = 17.12.35827.183
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackendApis", "BackendApis\BackendApis.csproj", "{4C679298-B9C3-4DFE-8835-E9483654DBD3}"
 EndProject
@@ -14,6 +14,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cryptography", "Cryptography\Cryptography.csproj", "{41A73E1F-BDB7-49CA-9CAD-EB11E6BD0856}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EncryptionsDecryptions", "EncryptionsDecryptions\EncryptionsDecryptions.csproj", "{533468A0-8C27-4D94-A830-AB33B211BA0C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestProject", "TestProject\TestProject.csproj", "{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{533468A0-8C27-4D94-A830-AB33B211BA0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{533468A0-8C27-4D94-A830-AB33B211BA0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{533468A0-8C27-4D94-A830-AB33B211BA0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

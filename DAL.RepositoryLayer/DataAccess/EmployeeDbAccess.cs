@@ -44,11 +44,12 @@ namespace DAL.RepositoryLayer.DataAccess
                 .Take(model.PageSize)
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id.ToString(),
+                    Id = e.Id.ToString().ToLowerInvariant(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
                     Image = e.ImageUrl,
+                    Cv = e.CvUrl,
                     AppUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 });
@@ -67,11 +68,12 @@ namespace DAL.RepositoryLayer.DataAccess
                 .OrderBy(e => e.Id) // Always apply ordering when using Skip/Take
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id.ToString(),
+                    Id = e.Id.ToString().ToLowerInvariant(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
                     Image = e.ImageUrl,
+                    Cv = e.CvUrl,
                     AppUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
@@ -99,11 +101,12 @@ namespace DAL.RepositoryLayer.DataAccess
                 .Take(model.PageSize)
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id.ToString(),
+                    Id = e.Id.ToString().ToLowerInvariant(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
                     Image = e.ImageUrl,
+                    Cv = e.CvUrl,
                     AppUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
@@ -131,11 +134,12 @@ namespace DAL.RepositoryLayer.DataAccess
                 .Take(model.PageSize)
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id.ToString(),
+                    Id = e.Id.ToString().ToLowerInvariant(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
                     Image = e.ImageUrl,
+                    Cv = e.CvUrl,
                     AppUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
@@ -144,7 +148,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString() == model.Id && e.IsActive, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive, cancellationToken);
             if (employee is null) return false;
 
             employee.Name = model.Name;
@@ -165,7 +169,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString() == model.Id && e.IsActive, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive, cancellationToken);
             if (employee is null) return false;
 
             employee.IsActive = false;
@@ -181,14 +185,16 @@ namespace DAL.RepositoryLayer.DataAccess
             return await _db.Employees
                 .AsNoTracking()
                 .Include(e => e.ApplicationUser)
-                .Where(e => e.Id.ToString() == model.Id && e.IsActive)
+                .Where(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive)
                 .AsSplitQuery()
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id.ToString(),
+                    Id = e.Id.ToString().ToLowerInvariant(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
+                    Cv = e.CvUrl,
+                    Image = e.ImageUrl,
                     AppUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
@@ -197,7 +203,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString() == model.Id && e.IsActive, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive, cancellationToken);
 
             if (employee is null || string.Equals(employee.Name?.Trim(), model.Name, StringComparison.OrdinalIgnoreCase))
                 return false;

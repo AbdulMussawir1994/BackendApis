@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BackendApis.Controllers;
 
-[Route("api/[controller]")]
 [ApiController]
+[ApiVersion("2.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class JobsController : ControllerBase
 {
     private readonly IBackgroundJobClient _backgroundJobClient;
