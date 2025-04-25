@@ -1,4 +1,5 @@
 ﻿using DAL.DatabaseLayer.DTOs.EmployeeDto;
+using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
 
 namespace DAL.RepositoryLayer.IDataAccess
@@ -14,5 +15,6 @@ namespace DAL.RepositoryLayer.IDataAccess
         Task<GetEmployeeDto?> GetEmployeeById(EmployeeIdViewModel model, CancellationToken cancellationToken);
         Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken);
         Task<EmployeeListResponse> GetEmployeesCount(ViewEmployeeModel model, CancellationToken cancellationToken);
+        Task<string> GetEmployeeFilePathByIdAsync(DownloadFileByIdViewModel model);
     }
 }

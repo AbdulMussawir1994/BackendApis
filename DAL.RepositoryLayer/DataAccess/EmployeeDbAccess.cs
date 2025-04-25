@@ -1,8 +1,10 @@
 ﻿using DAL.DatabaseLayer.DataContext;
 using DAL.DatabaseLayer.DTOs.EmployeeDto;
 using DAL.DatabaseLayer.Models;
+using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
 using DAL.RepositoryLayer.IDataAccess;
+using DAL.ServiceLayer.Models;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,19 +13,31 @@ namespace DAL.RepositoryLayer.DataAccess
     public class EmployeeDbAccess : IEmployeeDbAccess
     {
         private readonly WebContextDb _db;
-        private readonly IFileService _fileService;
+        private readonly IFileUtility _fileUtility;
 
-        public EmployeeDbAccess(WebContextDb db, IFileService fileService)
+        public EmployeeDbAccess(WebContextDb db, IFileUtility fileUtility)
         {
             _db = db;
-            _fileService = fileService;
+            _fileUtility = fileUtility;
         }
 
         public async Task<bool> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken)
         {
             var employee = model.Adapt<Employee>();
-            employee.CvUrl = model.CV != null ? await _fileService.SaveFileAsync(model.CV, "cvs", cancellationToken) : string.Empty;
-            employee.ImageUrl = model.Image != null ? await _fileService.SaveFileAsync(model.Image, "images", cancellationToken) : string.Empty;
+            var folder = DateTime.UtcNow.ToString("yyyy/MM");
+
+            // Prepare file upload tasks
+            var cvTask = model.CV != null ? _fileUtility.SaveFileInternalAsync(model.CV, folder) : Task.FromResult<MobileResponse<string>>(null);
+            var imageTask = model.Image != null ? _fileUtility.SaveFileInternalAsync(model.Image, folder) : Task.FromResult<MobileResponse<string>>(null);
+
+            // Run both uploads in parallel
+            var uploadResults = await Task.WhenAll(cvTask, imageTask);
+
+            var cvResult = uploadResults[0];
+            var imageResult = uploadResults[1];
+
+            employee.CvUrl = (cvResult != null && cvResult.Status.IsSuccess) ? cvResult.Content : string.Empty;
+            employee.ImageUrl = (imageResult != null && imageResult.Status.IsSuccess) ? imageResult.Content : string.Empty;
 
             await _db.Employees.AddAsync(employee, cancellationToken);
             return await _db.SaveChangesAsync(cancellationToken) > 0;
@@ -148,18 +162,33 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive, cancellationToken);
-            if (employee is null) return false;
+            var employee = await _db.Employees
+                .FirstOrDefaultAsync(e => e.Id.ToString().ToLower() == model.Id && e.IsActive, cancellationToken);
 
-            employee.Name = model.Name;
+            if (employee is null)
+                return false;
+
+            var folder = DateTime.UtcNow.ToString("yyyy/MM");
+
+            employee.Name = model.Name?.Trim();
             employee.Age = model.Age;
             employee.Salary = model.Salary;
 
-            if (model.CV != null)
-                employee.CvUrl = await _fileService.SaveFileAsync(model.CV, "cvs", cancellationToken);
+            // Prepare parallel upload tasks
+            var cvTask = model.CV != null ? _fileUtility.SaveFileInternalAsync(model.CV, folder) : Task.FromResult<MobileResponse<string>>(null);
+            var imageTask = model.Image != null ? _fileUtility.SaveFileInternalAsync(model.Image, folder) : Task.FromResult<MobileResponse<string>>(null);
 
-            if (model.Image != null)
-                employee.ImageUrl = await _fileService.SaveFileAsync(model.Image, "images", cancellationToken);
+            // Run uploads in parallel
+            var uploadResults = await Task.WhenAll(cvTask, imageTask);
+
+            var cvResult = uploadResults[0];
+            var imageResult = uploadResults[1];
+
+            if (cvResult != null && cvResult.Status.IsSuccess)
+                employee.CvUrl = cvResult.Content;
+
+            if (imageResult != null && imageResult.Status.IsSuccess)
+                employee.ImageUrl = imageResult.Content;
 
             employee.UpdatedDate = DateTime.UtcNow;
 
@@ -169,7 +198,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLower() == model.Id && e.IsActive, cancellationToken);
             if (employee is null) return false;
 
             employee.IsActive = false;
@@ -189,7 +218,7 @@ namespace DAL.RepositoryLayer.DataAccess
                 .AsSplitQuery()
                 .Select(e => new GetEmployeeDto
                 {
-                    Id = e.Id.ToString().ToLowerInvariant(),
+                    Id = e.Id.ToString().ToLower(),
                     EmployeeName = e.Name,
                     Age = e.Age,
                     Salary = e.Salary,
@@ -203,7 +232,7 @@ namespace DAL.RepositoryLayer.DataAccess
 
         public async Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
-            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive, cancellationToken);
+            var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id.ToString().ToLower() == model.Id && e.IsActive, cancellationToken);
 
             if (employee is null || string.Equals(employee.Name?.Trim(), model.Name, StringComparison.OrdinalIgnoreCase))
                 return false;
@@ -215,6 +244,15 @@ namespace DAL.RepositoryLayer.DataAccess
             _db.Entry(employee).Property(e => e.UpdatedDate).IsModified = true;
 
             return await _db.SaveChangesAsync(cancellationToken) > 0;
+        }
+
+        public async Task<string> GetEmployeeFilePathByIdAsync(DownloadFileByIdViewModel model)
+        {
+            return await _db.Employees
+                .AsNoTracking()
+                .Where(e => e.Id.ToString().ToLowerInvariant() == model.Id && e.IsActive)
+                .Select(e => model.FileType.ToLowerInvariant() == "cv" ? e.CvUrl : e.ImageUrl)
+                .FirstOrDefaultAsync();
         }
     }
 }

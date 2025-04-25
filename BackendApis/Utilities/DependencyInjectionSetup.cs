@@ -138,6 +138,7 @@ public static class DependencyInjectionSetup
 
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IEmployeeDbAccess, EmployeeDbAccess>();
+        services.AddScoped<IFilesServiceRepository, FilesServiceRepository>();
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IFileUtility, FileUtility>();
 

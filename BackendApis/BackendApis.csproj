@@ -50,8 +50,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\cvs\" />
-    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>

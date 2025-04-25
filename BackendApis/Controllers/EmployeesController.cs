@@ -105,5 +105,13 @@ namespace BackendApis.Controllers
                 ? Ok(validation)
                 : Ok(await _employeeLayer.PatchEmployeeAsync(model, cancellationToken));
         }
+
+        //public async Task<Dictionary<string, List<GetEmployeeDto>>> GetEstablishmentsGroupedByBusinessNatureAsync()
+        //{
+        //    return await _dbContext.Establishment
+        //        .AsNoTracking()
+        //        .GroupBy(e => e.BusinessNature)
+        //        .ToDictionaryAsync(g => g.Key, g => g.ToList());
+        //}
     }
 }

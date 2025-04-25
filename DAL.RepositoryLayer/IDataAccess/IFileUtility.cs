@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DAL.ServiceLayer.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace DAL.RepositoryLayer.IDataAccess;
 
 public interface IFileUtility
 {
     string WebRoot { get; }
-    Task<string> SaveFileAsync(IFormFile file, string folderName);
+    Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName);
     string ResolveAbsolutePath(string relativePath);
     string GetContentType(string path);
 }

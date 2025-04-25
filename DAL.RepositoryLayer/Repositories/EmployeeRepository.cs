@@ -1,4 +1,5 @@
 ﻿using DAL.DatabaseLayer.DTOs.EmployeeDto;
+using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
 using DAL.RepositoryLayer.IDataAccess;
 using DAL.RepositoryLayer.IRepositories;
@@ -122,6 +123,16 @@ namespace DAL.RepositoryLayer.Repositories
             return result
                 ? response.SetSuccess("SUCCESS-200", "Employee patched successfully.", true)
                 : response.SetError("ERR-404", "Employee not found.", false);
+        }
+        public async Task<MobileResponse<string>> GetEmployeeFilePath(DownloadFileByIdViewModel model)
+        {
+            var response = new MobileResponse<string>(_configHandler, "employee");
+
+            var filePath = await _employeeDbAccess.GetEmployeeFilePathByIdAsync(model);
+
+            return string.IsNullOrWhiteSpace(filePath)
+                ? response.SetError("ERR-404", "Employee file path not found.", null)
+                : response.SetSuccess("SUCCESS-200", "File path retrieved.", filePath);
         }
 
     }

@@ -1,5 +1,8 @@
-﻿using DAL.DatabaseLayer.DataContext;
+﻿using DAL.DatabaseLayer.ViewModels;
 using DAL.RepositoryLayer.IDataAccess;
+using DAL.RepositoryLayer.IRepositories;
+using DAL.ServiceLayer.BaseController;
+using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,67 +10,75 @@ using Microsoft.AspNetCore.Mvc;
 [AllowAnonymous]
 [ApiVersion("2.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
-public class DownloadUploadController : ControllerBase
+public class DownloadUploadController : WebBaseController
 {
-    private readonly WebContextDb _context;
     private readonly IFileUtility _fileUtility;
+    private readonly IFilesServiceRepository _serviceRepository;
+    private readonly IEmployeeRepository _employeeRepository;
 
-    public DownloadUploadController(WebContextDb context, IFileUtility fileUtility)
+    public DownloadUploadController(IFileUtility fileUtility, IFilesServiceRepository serviceRepository,
+                                                                        IEmployeeRepository employeeRepository, ConfigHandler configHandler) : base(configHandler)
     {
-        _context = context;
         _fileUtility = fileUtility;
+        _serviceRepository = serviceRepository;
+        _employeeRepository = employeeRepository;
     }
 
-    [HttpPost("Upload")]
-    public async Task<IActionResult> UploadFiles([FromForm] IFormFile[] files)
+    [HttpPost("UploadFiles")]
+    public async Task<IActionResult> UploadMultipleFiles([FromForm] FilesViewModel model)
     {
-        if (files == null || files.Length == 0)
-            return BadRequest("No files provided.");
+        var validation = this.ModelValidator(model);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
 
-        var savedFiles = new List<object>();
-        var folder = DateTime.UtcNow.ToString("yyyy/MM");
-
-        foreach (var file in files)
-        {
-            var savedPath = await _fileUtility.SaveFileAsync(file, folder);
-            savedFiles.Add(new { file.FileName, path = savedPath });
-        }
-
-        return Ok(new { status = true, files = savedFiles });
+        var result = await _serviceRepository.UploadFilesAsync(model);
+        return Ok(result);
     }
 
-    [HttpGet("Download")]
-    public IActionResult DownloadFile([FromQuery] string filePath)
+    [HttpPost("DownloadFile")]
+    public IActionResult DownloadFile([FromBody] DownloadFileViewModel model)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            return BadRequest("File path is required.");
+        var validation = this.ModelValidator(model);
 
-        var absolutePath = _fileUtility.ResolveAbsolutePath(filePath);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
+
+        var absolutePath = _fileUtility.ResolveAbsolutePath(model.FilePath);
+
         if (!System.IO.File.Exists(absolutePath))
             return NotFound("File not found.");
 
         var contentType = _fileUtility.GetContentType(absolutePath);
-        var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
+        var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         return File(stream, contentType, Path.GetFileName(absolutePath));
     }
 
-    [HttpGet("DownloadById/{id}")]
-    public async Task<IActionResult> DownloadEmployeeFile(Guid id, [FromQuery] string fileType)
+    [HttpGet("DownloadFileBase64")]
+    public async Task<IActionResult> DownloadFileBase64([FromQuery] DownloadFileViewModel model)
     {
-        var employee = await _context.Employees.FindAsync(id);
-        if (employee is null) return NotFound("Employee not found.");
+        var validation = this.ModelValidator(model);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
 
-        var relativePath = fileType?.ToLowerInvariant() switch
-        {
-            "image" => employee.ImageUrl,
-            _ => null
-        };
+        var result = await _serviceRepository.DownloadFileAsBase64Async(model);
+        return Ok(result);
+    }
 
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return NotFound("Requested file not found.");
+    [HttpPost("DownloadById")]
+    public async Task<IActionResult> DownloadEmployeeFile([FromForm] DownloadFileByIdViewModel model)
+    {
+        var validation = this.ModelValidator(model);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
 
-        var fullPath = _fileUtility.ResolveAbsolutePath(relativePath);
+        var pathResponse = await _employeeRepository.GetEmployeeFilePath(model);
+
+        if (!pathResponse.Status.IsSuccess || string.IsNullOrWhiteSpace(pathResponse.Content))
+            return NotFound(pathResponse);
+
+        var fullPath = _fileUtility.ResolveAbsolutePath(pathResponse.Content);
+
         if (!System.IO.File.Exists(fullPath))
             return NotFound("File not available on disk.");
 

@@ -1,4 +1,5 @@
 ﻿using DAL.DatabaseLayer.DTOs.EmployeeDto;
+using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
 using DAL.ServiceLayer.Models;
 
@@ -15,5 +16,6 @@ namespace DAL.RepositoryLayer.IRepositories
         Task<MobileResponse<bool>> PatchEmployeeAsync(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken);
         Task<MobileResponse<bool>> UpdateEmployeeAsync(UpdateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<MobileResponse<EmployeeListResponse>> GetEmployeesPaginationAsync(ViewEmployeeModel model, CancellationToken cancellationToken);
+        Task<MobileResponse<string>> GetEmployeeFilePath(DownloadFileByIdViewModel model);
     }
 }
