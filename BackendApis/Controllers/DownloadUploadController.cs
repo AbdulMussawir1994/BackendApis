@@ -2,7 +2,6 @@
 using DAL.RepositoryLayer.IDataAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.StaticFiles;
 
 [ApiController]
 [AllowAnonymous]
@@ -19,7 +18,7 @@ public class DownloadUploadController : ControllerBase
         _fileUtility = fileUtility;
     }
 
-    [HttpPost("upload")]
+    [HttpPost("Upload")]
     public async Task<IActionResult> UploadFiles([FromForm] IFormFile[] files)
     {
         if (files == null || files.Length == 0)
@@ -37,32 +36,7 @@ public class DownloadUploadController : ControllerBase
         return Ok(new { status = true, files = savedFiles });
     }
 
-    //[HttpPost("upload-employee")]
-    //public async Task<IActionResult> UploadEmployeeFile([FromForm] IFormFile file, string employeeId, [FromForm] string fileType)
-    //{
-    //    if (file == null || string.IsNullOrWhiteSpace(fileType))
-    //        return BadRequest("File and fileType are required.");
-
-    //    var employee = await _context.Employees.FindAsync(employeeId);
-    //    if (employee is null) return NotFound("Employee not found.");
-
-    //    var path = await _fileUtility.SaveFileAsync(file, $"employee/{employeeId}");
-    //    switch (fileType.Trim().ToLowerInvariant())
-    //    {
-    //        case "image": employee.ImageUrl = path; break;
-    //        //    case "video": employee.VideoCVURL = path; break;
-    //        //  case "audio": employee.AudioCVURL = path; break;
-    //        //  case "cv": employee.CVURL = path; break;
-    //        default: return BadRequest("Invalid file type.");
-    //    }
-
-    //    _context.Employees.Update(employee);
-    //    await _context.SaveChangesAsync();
-
-    //    return Ok(new { status = true, path });
-    //}
-
-    [HttpGet("download")]
+    [HttpGet("Download")]
     public IActionResult DownloadFile([FromQuery] string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -73,10 +47,9 @@ public class DownloadUploadController : ControllerBase
             return NotFound("File not found.");
 
         var contentType = _fileUtility.GetContentType(absolutePath);
-        var fileBytes = System.IO.File.ReadAllBytes(absolutePath);
-        var fileName = Path.GetFileName(absolutePath);
+        var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        return File(fileBytes, contentType, fileName);
+        return File(stream, contentType, Path.GetFileName(absolutePath));
     }
 
     [HttpGet("DownloadById/{id}")]
@@ -88,9 +61,6 @@ public class DownloadUploadController : ControllerBase
         var relativePath = fileType?.ToLowerInvariant() switch
         {
             "image" => employee.ImageUrl,
-            // "video" => employee.VideoCVURL,
-            //"audio" => employee.AudioCVURL,
-            // "cv" => employee.CVURL,
             _ => null
         };
 
@@ -101,42 +71,10 @@ public class DownloadUploadController : ControllerBase
         if (!System.IO.File.Exists(fullPath))
             return NotFound("File not available on disk.");
 
-        await using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
-        var memory = new MemoryStream();
-        await stream.CopyToAsync(memory);
-        memory.Position = 0;
-
+        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         var contentType = _fileUtility.GetContentType(fullPath);
-        var fileName = Path.GetFileName(fullPath);
 
-        return File(memory, contentType, fileName);
-    }
-
-    [HttpPut("MultiUploadImage")]
-    public async Task<IActionResult> MultiUploadImage([FromForm] IFormFileCollection filecollection, [FromQuery] string productCode)
-    {
-        if (string.IsNullOrWhiteSpace(productCode))
-            return BadRequest("Product code is required.");
-
-        if (filecollection == null || filecollection.Count == 0)
-            return BadRequest("No files received.");
-
-        int passCount = 0;
-        var folderPath = Path.Combine(_fileUtility.WebRoot, "files", "2023", productCode);
-        Directory.CreateDirectory(folderPath);
-
-        foreach (var file in filecollection)
-        {
-            if (file.Length == 0) continue;
-            var filePath = Path.Combine(folderPath, Path.GetFileName(file.FileName));
-            if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
-            passCount++;
-        }
-
-        return Ok(new { status = true, uploaded = passCount });
+        return File(stream, contentType, Path.GetFileName(fullPath));
     }
 
     [HttpGet("GetImage/{*imageUrl}")]
@@ -145,17 +83,13 @@ public class DownloadUploadController : ControllerBase
         if (string.IsNullOrWhiteSpace(imageUrl))
             return BadRequest("Image URL is required.");
 
-        var relativePath = Uri.UnescapeDataString(imageUrl).Replace("/", Path.DirectorySeparatorChar.ToString());
-        var fullPath = Path.Combine(_fileUtility.WebRoot, relativePath);
+        var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
 
         if (!System.IO.File.Exists(fullPath))
             return NotFound("Image not found.");
 
-        var provider = new FileExtensionContentTypeProvider();
-        if (!provider.TryGetContentType(fullPath, out var contentType))
-            contentType = "application/octet-stream";
-
         var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var contentType = _fileUtility.GetContentType(fullPath);
 
         return File(stream, contentType);
     }
@@ -166,47 +100,16 @@ public class DownloadUploadController : ControllerBase
         if (string.IsNullOrWhiteSpace(imageUrl))
             return BadRequest("Image URL is required.");
 
-        var relativePath = Uri.UnescapeDataString(imageUrl).Replace("/", Path.DirectorySeparatorChar.ToString());
-        var fullPath = Path.Combine(_fileUtility.WebRoot, relativePath);
+        var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
 
         if (!System.IO.File.Exists(fullPath))
-            return NotFound("File not found.");
+            return NotFound("Image not found.");
 
-        var provider = new FileExtensionContentTypeProvider();
-        if (!provider.TryGetContentType(fullPath, out var contentType))
-            contentType = "application/octet-stream";
-
-        var fileName = Path.GetFileName(fullPath);
+        var contentType = _fileUtility.GetContentType(fullPath);
         var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+        Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{Path.GetFileName(fullPath)}\"");
 
-        return File(stream, contentType, fileName);
-    }
-
-    [HttpGet("DownloadImage1/{*imageUrl}")]
-    public IActionResult DownloadImage1(string imageUrl)
-    {
-        if (string.IsNullOrWhiteSpace(imageUrl))
-            return BadRequest("Image URL is required.");
-
-        // Normalize path
-        var sanitizedPath = Uri.UnescapeDataString(imageUrl)
-            .Replace("/", Path.DirectorySeparatorChar.ToString());
-
-        var fullPath = Path.Combine(_fileUtility.WebRoot, sanitizedPath);
-
-        if (!System.IO.File.Exists(fullPath))
-            return NotFound("Image file not found.");
-
-        var provider = new FileExtensionContentTypeProvider();
-        if (!provider.TryGetContentType(fullPath, out var contentType))
-            contentType = "application/octet-stream"; // fallback
-
-        var fileBytes = System.IO.File.ReadAllBytes(fullPath);
-        var fileName = Path.GetFileName(fullPath);
-
-        // This will trigger a file download in browser
-        return File(fileBytes, contentType, fileName);
+        return File(stream, contentType);
     }
 }

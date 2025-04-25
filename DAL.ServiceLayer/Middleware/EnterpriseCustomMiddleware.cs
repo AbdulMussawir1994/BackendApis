@@ -315,11 +315,26 @@ public class EnterpriseCustomMiddleware
         try
         {
             await _next(context);
-            context.Response.Body.Seek(0, SeekOrigin.Begin);
-            var response = await new StreamReader(context.Response.Body).ReadToEndAsync();
-            context.Response.Body.Seek(0, SeekOrigin.Begin);
 
-            var finalOutput = encryptResponse ? new AesGcmEncryption(_config).Decrypt(response, key) : response;
+            // Skip encryption for binary content (e.g., images, PDFs)
+            var contentType = context.Response.ContentType;
+            if (!string.IsNullOrEmpty(contentType) &&
+                (contentType.StartsWith("image/") || contentType == "application/pdf" || contentType.StartsWith("video/") || contentType.StartsWith("audio/")))
+            {
+                context.Response.Body = originalBody;
+                responseBody.Position = 0;
+                await responseBody.CopyToAsync(originalBody);
+                return "[BINARY_CONTENT_SKIPPED]"; // Placeholder for logging (optional)
+            }
+
+            responseBody.Seek(0, SeekOrigin.Begin);
+            var response = await new StreamReader(responseBody).ReadToEndAsync();
+            responseBody.Seek(0, SeekOrigin.Begin);
+
+            var finalOutput = encryptResponse
+                ? new AesGcmEncryption(_config).Decrypt(response, key)
+                : response;
+
             var outputBytes = Encoding.UTF8.GetBytes(finalOutput);
             context.Response.ContentLength = outputBytes.Length;
             context.Response.Body = originalBody;
@@ -333,7 +348,7 @@ public class EnterpriseCustomMiddleware
             context.Response.ContentType = "application/json";
 
             var errorResponse = new MobileResponse<string>(_configHandler, "Application");
-            errorResponse.SetError("ERR-1003", ex.InnerException.Message);
+            errorResponse.SetError("ERR-1003", ex.InnerException?.Message ?? ex.Message);
 
             var filteredResponse = new
             {
@@ -344,7 +359,6 @@ public class EnterpriseCustomMiddleware
             };
 
             var errorJson = JsonConvert.SerializeObject(filteredResponse);
-
             await originalBody.WriteAsync(Encoding.UTF8.GetBytes(errorJson));
             return errorJson;
         }
