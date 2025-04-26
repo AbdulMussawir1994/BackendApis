@@ -75,7 +75,8 @@ namespace DAL.RepositoryLayer.Repositories
                 return response.SetError("ERR-1001", "Invalid application user ID.", false);
             }
 
-            var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);
+            //var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);
+            var result = await _employeeDbAccess.CreateEmployee1(model, cancellationToken);
 
             return result
                 ? response.SetSuccess("SUCCESS-200", "Employee created successfully.", true)

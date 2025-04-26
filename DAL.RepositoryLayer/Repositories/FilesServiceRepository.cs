@@ -39,6 +39,25 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetError("ERR-500", "No files were saved.", false);
         }
 
+        public async Task<MobileResponse<object>> UploadBase64ImageAsync(UploadBase64ImageViewModel model)
+        {
+            var response = new MobileResponse<object>(_configHandler, "FilesService");
+
+            var folder = DateTime.UtcNow.ToString("yyyy/MM");
+            var saveResult = await _fileUtility.SaveBase64FileAsync(model.Base64String, model.FileName, folder);
+
+            if (!saveResult.Status.IsSuccess)
+                return response.SetError("ERR-500", $"Image upload failed: {saveResult.Status.StatusMessage}", false);
+
+            var result = new
+            {
+                FileName = model.FileName,
+                Path = saveResult.Content
+            };
+
+            return response.SetSuccess("SUCCESS-200", "Image uploaded successfully.", result);
+        }
+
         public async Task<MobileResponse<object>> DownloadFileAsBase64Async(DownloadFileViewModel model)
         {
             var response = new MobileResponse<object>(_configHandler, "FilesService");
@@ -71,5 +90,49 @@ namespace DAL.RepositoryLayer.Repositories
             }
         }
 
+        public async Task<(Stream FileStream, string ContentType, string FileName)> DownloadImageAsync(string imageUrl)
+        {
+            // Same as GetImageAsync (can extend if you want extra logging for downloads separately)
+            return await GetImageAsync(imageUrl);
+        }
+
+
+        public async Task<(Stream FileStream, string ContentType, string FileName)> GetImageAsync(string imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                return (null, null, null);
+
+            var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
+
+            if (!System.IO.File.Exists(fullPath))
+                return (null, null, null);
+
+            var options = new FileStreamOptions
+            {
+                Access = FileAccess.Read,
+                Mode = FileMode.Open,
+                Share = FileShare.Read,
+                BufferSize = 81920, // Default optimal
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+            };
+
+            var stream = new FileStream(fullPath, options);
+            var contentType = _fileUtility.GetContentType(fullPath);
+            var fileName = Path.GetFileName(fullPath);
+
+            return (stream, contentType, fileName);
+        }
+
+        public async Task<MobileResponse<object>> UploadPhysicalImageAndConvertToBase64(UploadPhysicalImageViewModel model)
+        {
+            var response = new MobileResponse<object>(_configHandler, "FilesService");
+
+            var fileResult = await _fileUtility.UploadPhysicalImageAndConvertToBase64Async(model);
+
+            if (!fileResult.Status.IsSuccess)
+                return response.SetError("ERR-500", "File conversion failed.", false);
+
+            return response.SetSuccess("SUCCESS-200", "File converted to Base64 successfully.", fileResult.Content);
+        }
     }
 }

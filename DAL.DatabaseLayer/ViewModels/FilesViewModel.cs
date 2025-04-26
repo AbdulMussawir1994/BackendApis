@@ -25,5 +25,26 @@ public class DownloadFileByIdViewModel
     public string FileType { get; set; }
 }
 
+public class UploadBase64ImageViewModel
+{
+    [Required(ErrorMessage = "Base64 string is required.")]
+    public string Base64String { get; set; }
+
+    [Required(ErrorMessage = "File name is required.")]
+    public string FileName { get; set; }
+}
+
+public class UploadPhysicalImageViewModel
+{
+    [Required(ErrorMessage = "Image file is required.")]
+    public IFormFile ImageFile { get; set; }
+}
+
+public class Base64FileResult
+{
+    public string FileName { get; set; }
+    public string ContentType { get; set; }
+    public string Base64 { get; set; }
+}
 
 

@@ -84,7 +84,15 @@ try
 
     //// 3. HTTPS Redirect & Static files (before routing)
     app.UseHttpsRedirection();
-    app.UseStaticFiles();
+    //app.UseStaticFiles();
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = ctx =>
+        {
+            ctx.Context.Response.Headers.Append("Cache-Control", $"public, max-age={60 * 60 * 24}"); // 1 day
+        }
+    });
 
     //// 4. Routing
     app.UseRouting();

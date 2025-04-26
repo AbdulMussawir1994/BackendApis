@@ -1,10 +1,13 @@
 ﻿using BackendApis.Helpers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Quartz;
 
 namespace BackendApis.Controllers
 {
     [ApiController]
+    //[Authorize]
+    [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class QuartzController : ControllerBase

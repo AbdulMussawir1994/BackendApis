@@ -7,6 +7,7 @@ using DAL.RepositoryLayer.IDataAccess;
 using DAL.ServiceLayer.Models;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace DAL.RepositoryLayer.DataAccess
 {
@@ -38,6 +39,52 @@ namespace DAL.RepositoryLayer.DataAccess
 
             employee.CvUrl = (cvResult != null && cvResult.Status.IsSuccess) ? cvResult.Content : string.Empty;
             employee.ImageUrl = (imageResult != null && imageResult.Status.IsSuccess) ? imageResult.Content : string.Empty;
+
+            await _db.Employees.AddAsync(employee, cancellationToken);
+            return await _db.SaveChangesAsync(cancellationToken) > 0;
+        }
+
+        public async Task<bool> CreateEmployee1(CreateEmployeeViewModel model, CancellationToken cancellationToken)
+        {
+            var employee = model.Adapt<Employee>();
+            var folder = DateTime.UtcNow.ToString("yyyy/MM");
+
+            // Prepare upload tasks
+            var cvTask = model.CV != null
+                ? _fileUtility.SaveFileInternalAsync(model.CV, folder)
+                : Task.FromResult<MobileResponse<string>>(null);
+
+            var imageTask = model.Image != null
+                ? _fileUtility.UploadPhysicalImageAndConvertToBase64Async(new UploadPhysicalImageViewModel { ImageFile = model.Image })
+                : Task.FromResult<MobileResponse<object>>(null);
+
+            await Task.WhenAll(cvTask, imageTask);
+
+            var cvResult = await cvTask;
+            var imageResult = await imageTask;
+
+            // Handle CV File (Saved Physical Path)
+            if (cvResult != null && cvResult.Status.IsSuccess && !string.IsNullOrWhiteSpace(cvResult.Content))
+            {
+                employee.CvUrl = cvResult.Content;
+            }
+            else
+            {
+                employee.CvUrl = string.Empty;
+            }
+
+            // Handle Image Base64
+            if (imageResult != null && imageResult.Status.IsSuccess && imageResult.Content != null)
+            {
+                var imageJson = JsonSerializer.Serialize(imageResult.Content);
+                var imgFile = JsonSerializer.Deserialize<Base64FileResult>(imageJson);
+
+                employee.ImageUrl = imgFile?.Base64 ?? string.Empty;
+            }
+            else
+            {
+                employee.ImageUrl = string.Empty;
+            }
 
             await _db.Employees.AddAsync(employee, cancellationToken);
             return await _db.SaveChangesAsync(cancellationToken) > 0;

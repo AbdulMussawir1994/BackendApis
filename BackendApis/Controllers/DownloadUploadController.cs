@@ -35,6 +35,28 @@ public class DownloadUploadController : WebBaseController
         return Ok(result);
     }
 
+    [HttpPost("UploadBase64Image")]
+    public async Task<IActionResult> UploadBase64Image([FromBody] UploadBase64ImageViewModel model)
+    {
+        var validation = this.ModelValidator(model);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
+
+        var result = await _serviceRepository.UploadBase64ImageAsync(model);
+        return Ok(result);
+    }
+
+    [HttpPost("UploadPhysicalImageToBase64")]
+    public async Task<IActionResult> UploadPhysicalImageToBase64([FromForm] UploadPhysicalImageViewModel model)
+    {
+        var validation = this.ModelValidator(model);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
+
+        var result = await _serviceRepository.UploadPhysicalImageAndConvertToBase64(model);
+        return Ok(result);
+    }
+
     [HttpPost("DownloadFile")]
     public IActionResult DownloadFile([FromBody] DownloadFileViewModel model)
     {
@@ -89,38 +111,70 @@ public class DownloadUploadController : WebBaseController
     }
 
     [HttpGet("GetImage/{*imageUrl}")]
-    public IActionResult GetImage(string imageUrl)
+    public async Task<IActionResult> GetImage(string imageUrl)
     {
-        if (string.IsNullOrWhiteSpace(imageUrl))
-            return BadRequest("Image URL is required.");
+        var validation = this.ModelValidator(imageUrl);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
 
-        var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
+        var (stream, contentType, _) = await _serviceRepository.GetImageAsync(imageUrl);
 
-        if (!System.IO.File.Exists(fullPath))
-            return NotFound("Image not found.");
-
-        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var contentType = _fileUtility.GetContentType(fullPath);
+        if (stream is null)
+            return NotFound(contentType);
 
         return File(stream, contentType);
     }
 
     [HttpGet("DownloadImage/{*imageUrl}")]
-    public IActionResult DownloadImage(string imageUrl)
+    public async Task<IActionResult> DownloadImage(string imageUrl)
     {
-        if (string.IsNullOrWhiteSpace(imageUrl))
-            return BadRequest("Image URL is required.");
+        var validation = this.ModelValidator(imageUrl);
+        if (!validation.Status.IsSuccess)
+            return Ok(validation);
 
-        var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
+        var (stream, contentType, fileName) = await _serviceRepository.DownloadImageAsync(imageUrl);
 
-        if (!System.IO.File.Exists(fullPath))
-            return NotFound("Image not found.");
+        if (stream is null)
+            return NotFound(contentType);
 
-        var contentType = _fileUtility.GetContentType(fullPath);
-        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-        Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{Path.GetFileName(fullPath)}\"");
+        Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{fileName}\"");
 
         return File(stream, contentType);
     }
+
+    //[HttpGet("GetImage/{*imageUrl}")]
+    //public IActionResult GetImage(string imageUrl)
+    //{
+    //    if (string.IsNullOrWhiteSpace(imageUrl))
+    //        return BadRequest("Image URL is required.");
+
+    //    var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
+
+    //    if (!System.IO.File.Exists(fullPath))
+    //        return NotFound("Image not found.");
+
+    //    var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+    //    var contentType = _fileUtility.GetContentType(fullPath);
+
+    //    return File(stream, contentType);
+    //}
+
+    //[HttpGet("DownloadImage/{*imageUrl}")]
+    //public IActionResult DownloadImage(string imageUrl)
+    //{
+    //    if (string.IsNullOrWhiteSpace(imageUrl))
+    //        return BadRequest("Image URL is required.");
+
+    //    var fullPath = _fileUtility.ResolveAbsolutePath(imageUrl);
+
+    //    if (!System.IO.File.Exists(fullPath))
+    //        return NotFound("Image not found.");
+
+    //    var contentType = _fileUtility.GetContentType(fullPath);
+    //    var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+    //    Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{Path.GetFileName(fullPath)}\"");
+
+    //    return File(stream, contentType);
+    //}
 }

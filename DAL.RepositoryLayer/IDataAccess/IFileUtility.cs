@@ -1,4 +1,5 @@
-﻿using DAL.ServiceLayer.Models;
+﻿using DAL.DatabaseLayer.ViewModels;
+using DAL.ServiceLayer.Models;
 using Microsoft.AspNetCore.Http;
 
 namespace DAL.RepositoryLayer.IDataAccess;
@@ -6,7 +7,11 @@ namespace DAL.RepositoryLayer.IDataAccess;
 public interface IFileUtility
 {
     string WebRoot { get; }
-    Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName);
-    string ResolveAbsolutePath(string relativePath);
     string GetContentType(string path);
+    string ResolveAbsolutePath(string relativePath);
+    Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName);
+    Task<string> SaveFileAsync(IFormFile file, string folder, CancellationToken cancellationToken);
+    Task<MobileResponse<string>> SaveBase64FileAsync(string base64String, string fileName, string folderName);
+    Task<MobileResponse<object>> UploadPhysicalImageAndConvertToBase64Async(UploadPhysicalImageViewModel model);
+
 }

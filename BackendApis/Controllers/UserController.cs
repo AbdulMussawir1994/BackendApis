@@ -11,6 +11,8 @@ using System.Security.Claims;
 namespace BackendApis.Controllers
 {
     [ApiController]
+    //[Authorize]
+    //   [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class UserController : WebBaseController
