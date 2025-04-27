@@ -9,9 +9,8 @@ public interface IFileUtility
     string WebRoot { get; }
     string GetContentType(string path);
     string ResolveAbsolutePath(string relativePath);
-    Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName);
-    Task<string> SaveFileAsync(IFormFile file, string folder, CancellationToken cancellationToken);
-    Task<MobileResponse<string>> SaveBase64FileAsync(string base64String, string fileName, string folderName);
-    Task<MobileResponse<object>> UploadPhysicalImageAndConvertToBase64Async(UploadPhysicalImageViewModel model);
+    Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName, CancellationToken cancellationToken = default);
+    Task<MobileResponse<string>> SaveBase64FileAsync(string base64String, string fileName, string folderName, CancellationToken cancellationToken = default);
+    Task<MobileResponse<object>> UploadImageAndConvertToBase64Async(UploadPhysicalImageViewModel model, CancellationToken cancellationToken = default);
 
 }

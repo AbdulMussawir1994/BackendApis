@@ -10,6 +10,6 @@ namespace DAL.RepositoryLayer.IRepositories
         Task<MobileResponse<object>> UploadBase64ImageAsync(UploadBase64ImageViewModel model);
         Task<(Stream FileStream, string ContentType, string FileName)> GetImageAsync(string imageUrl);
         Task<(Stream FileStream, string ContentType, string FileName)> DownloadImageAsync(string imageUrl);
-        Task<MobileResponse<object>> UploadPhysicalImageAndConvertToBase64(UploadPhysicalImageViewModel model);
+        Task<MobileResponse<object>> UploadImageAndConvertToBase64(UploadPhysicalImageViewModel model);
     }
 }

@@ -78,7 +78,7 @@ namespace DAL.RepositoryLayer.Repositories
             //var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);
             var result = await _employeeDbAccess.CreateEmployee1(model, cancellationToken);
 
-            return result
+            return result.Status.IsSuccess
                 ? response.SetSuccess("SUCCESS-200", "Employee created successfully.", true)
                 : response.SetError("ERR-500", "Failed to create employee.", false);
         }

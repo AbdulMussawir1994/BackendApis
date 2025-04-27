@@ -1,13 +1,14 @@
 ﻿using DAL.DatabaseLayer.DTOs.EmployeeDto;
 using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
+using DAL.ServiceLayer.Models;
 
 namespace DAL.RepositoryLayer.IDataAccess
 {
     public interface IEmployeeDbAccess
     {
         Task<bool> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken);
-        Task<bool> CreateEmployee1(CreateEmployeeViewModel model, CancellationToken cancellationToken);
+        Task<MobileResponse<string>> CreateEmployee1(CreateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<IEnumerable<GetEmployeeDto>> GetEmployeesList(ViewEmployeeModel model, CancellationToken cancellationToken);
         IQueryable<GetEmployeeDto> GetEmployees(ViewEmployeeModel model);
         IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(ViewEmployeeModel model);

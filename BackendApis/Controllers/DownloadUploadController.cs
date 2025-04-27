@@ -46,14 +46,14 @@ public class DownloadUploadController : WebBaseController
         return Ok(result);
     }
 
-    [HttpPost("UploadPhysicalImageToBase64")]
-    public async Task<IActionResult> UploadPhysicalImageToBase64([FromForm] UploadPhysicalImageViewModel model)
+    [HttpPost("UploadImageToBase64")]
+    public async Task<IActionResult> UploadImageToBase64([FromForm] UploadPhysicalImageViewModel model)
     {
         var validation = this.ModelValidator(model);
         if (!validation.Status.IsSuccess)
             return Ok(validation);
 
-        var result = await _serviceRepository.UploadPhysicalImageAndConvertToBase64(model);
+        var result = await _serviceRepository.UploadImageAndConvertToBase64(model);
         return Ok(result);
     }
 

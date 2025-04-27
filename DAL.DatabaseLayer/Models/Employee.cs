@@ -19,11 +19,9 @@ public class Employee
     [Column(TypeName = "decimal(18,2)"), Range(0, 100_000_000)]
     public decimal Salary { get; set; }
 
-    [MaxLength(255)]
-    public string? CvUrl { get; set; } = string.Empty;
+    public string? CvUrl { get; set; } = string.Empty; // Base64 string, no MaxLength
 
-    [MaxLength(255)]
-    public string? ImageUrl { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; } = string.Empty; // Base64 string, no MaxLength
 
     public bool IsActive { get; set; } = true;
     public long? CreatedBy { get; set; }

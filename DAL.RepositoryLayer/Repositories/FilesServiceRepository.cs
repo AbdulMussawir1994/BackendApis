@@ -123,11 +123,11 @@ namespace DAL.RepositoryLayer.Repositories
             return (stream, contentType, fileName);
         }
 
-        public async Task<MobileResponse<object>> UploadPhysicalImageAndConvertToBase64(UploadPhysicalImageViewModel model)
+        public async Task<MobileResponse<object>> UploadImageAndConvertToBase64(UploadPhysicalImageViewModel model)
         {
             var response = new MobileResponse<object>(_configHandler, "FilesService");
 
-            var fileResult = await _fileUtility.UploadPhysicalImageAndConvertToBase64Async(model);
+            var fileResult = await _fileUtility.UploadImageAndConvertToBase64Async(model);
 
             if (!fileResult.Status.IsSuccess)
                 return response.SetError("ERR-500", "File conversion failed.", false);
