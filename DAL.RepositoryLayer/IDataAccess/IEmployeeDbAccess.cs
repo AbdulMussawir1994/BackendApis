@@ -7,7 +7,7 @@ namespace DAL.RepositoryLayer.IDataAccess
 {
     public interface IEmployeeDbAccess
     {
-        Task<bool> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken);
+        Task<MobileResponse<bool>> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<MobileResponse<string>> CreateEmployee1(CreateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<IEnumerable<GetEmployeeDto>> GetEmployeesList(ViewEmployeeModel model, CancellationToken cancellationToken);
         IQueryable<GetEmployeeDto> GetEmployees(ViewEmployeeModel model);
@@ -18,5 +18,6 @@ namespace DAL.RepositoryLayer.IDataAccess
         Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken);
         Task<EmployeeListResponse> GetEmployeesCount(ViewEmployeeModel model, CancellationToken cancellationToken);
         Task<string> GetEmployeeFilePathByIdAsync(DownloadFileByIdViewModel model);
+        Task<Dictionary<string, List<GetEmployeeDto>>> GetAllEmployeesAsync();
     }
 }

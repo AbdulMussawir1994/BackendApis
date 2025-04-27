@@ -25,26 +25,83 @@ namespace DAL.RepositoryLayer.DataAccess
             _configHandler = configHandler;
         }
 
-        public async Task<bool> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken)
+        public async Task<Dictionary<string, List<GetEmployeeDto>>> GetAllEmployeesAsync()
         {
+            return await _db.Employees
+                .AsNoTracking()
+                .GroupBy(e => e.Name)
+                .Select(group => new
+                {
+                    Name = group.Key,
+                    Employees = group.Select(e => new GetEmployeeDto
+                    {
+                        Id = e.Id.ToString().ToLower(),
+                        EmployeeName = e.Name,
+                        Age = e.Age,
+                        Salary = e.Salary
+                    }).ToList()
+                })
+                .ToDictionaryAsync(group => group.Name, group => group.Employees);
+        }
+
+        public async Task<MobileResponse<bool>> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<bool>(_configHandler, "EmployeeDbAccess");
+
             var employee = model.Adapt<Employee>();
             var folder = DateTime.UtcNow.ToString("yyyy/MM");
 
-            // Prepare file upload tasks
-            var cvTask = model.CV != null ? _fileUtility.SaveFileInternalAsync(model.CV, folder) : Task.FromResult<MobileResponse<string>>(null);
-            var imageTask = model.Image != null ? _fileUtility.SaveFileInternalAsync(model.Image, folder) : Task.FromResult<MobileResponse<string>>(null);
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
-            // Run both uploads in parallel
-            var uploadResults = await Task.WhenAll(cvTask, imageTask);
+            try
+            {
+                // Upload CV
+                if (model.CV != null)
+                {
+                    var uploadCv = await _fileUtility.SaveFileInternalAsync(model.CV, folder);
 
-            var cvResult = uploadResults[0];
-            var imageResult = uploadResults[1];
+                    if (uploadCv is null || !uploadCv.Status.IsSuccess || string.IsNullOrWhiteSpace(uploadCv.Content))
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return response.SetError("ERR-400", $"CV upload failed: {uploadCv?.Status?.StatusMessage ?? "Unknown error"}", false);
+                    }
 
-            employee.CvUrl = (cvResult != null && cvResult.Status.IsSuccess) ? cvResult.Content : string.Empty;
-            employee.ImageUrl = (imageResult != null && imageResult.Status.IsSuccess) ? imageResult.Content : string.Empty;
+                    employee.CvUrl = uploadCv.Content;
+                }
 
-            await _db.Employees.AddAsync(employee, cancellationToken);
-            return await _db.SaveChangesAsync(cancellationToken) > 0;
+                // Upload Image
+                if (model.Image != null)
+                {
+                    var uploadImage = await _fileUtility.SaveFileInternalAsync(model.Image, folder);
+
+                    if (uploadImage is null || !uploadImage.Status.IsSuccess || string.IsNullOrWhiteSpace(uploadImage.Content))
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return response.SetError("ERR-400", $"Image upload failed: {uploadImage?.Status?.StatusMessage ?? "Unknown error"}", false);
+                    }
+
+                    employee.ImageUrl = uploadImage.Content;
+                }
+
+                // Save to database
+                await _db.Employees.AddAsync(employee, cancellationToken);
+                var saveResult = await _db.SaveChangesAsync(cancellationToken);
+
+                if (saveResult == 0)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return response.SetError("ERR-500", "Failed to save employee to database.", false);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+
+                return response.SetSuccess("SUCCESS-200", "Employee created successfully.", true);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return response.SetError("ERR-500", $"Unexpected error: {ex.Message}", false);
+            }
         }
 
         public async Task<MobileResponse<string>> CreateEmployee1(CreateEmployeeViewModel model, CancellationToken cancellationToken)
@@ -57,46 +114,43 @@ namespace DAL.RepositoryLayer.DataAccess
 
             try
             {
-                // Parallel upload tasks
-                var cvTask = model.CV != null
-                    ? _fileUtility.SaveFileInternalAsync(model.CV, folder)
-                    : Task.FromResult<MobileResponse<string>>(null);
-
-                var imageTask = model.Image != null
-                    ? _fileUtility.UploadImageAndConvertToBase64Async(new UploadPhysicalImageViewModel { ImageFile = model.Image })
-                    : Task.FromResult<MobileResponse<object>>(null);
-
-                await Task.WhenAll(cvTask, imageTask);
-
-                var cvResult = await cvTask;
-                var imageResult = await imageTask;
-
-                // Validate CV
-                if (cvResult != null && !cvResult.Status.IsSuccess)
+                // Sequentially process CV
+                if (model.CV != null)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return response.SetError("ERR-400", $"CV Upload Failed: {cvResult.Status.StatusMessage}", null);
+                    var cvResult = await _fileUtility.SaveFileInternalAsync(model.CV, folder);
+
+                    if (cvResult == null || !cvResult.Status.IsSuccess)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return response.SetError("ERR-400", $"CV Upload Failed: {cvResult?.Status?.StatusMessage}", null);
+                    }
+
+                    employee.CvUrl = cvResult.Content ?? string.Empty;
                 }
 
-                // Validate Image
-                if (imageResult != null && !imageResult.Status.IsSuccess)
+                // Sequentially process Image
+                if (model.Image != null)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return response.SetError("ERR-400", $"Image Upload Failed: {imageResult.Status.StatusMessage}", null);
+                    var imageResult = await _fileUtility.UploadImageAndConvertToBase64Async(new UploadPhysicalImageViewModel
+                    {
+                        ImageFile = model.Image
+                    });
+
+                    if (imageResult == null || !imageResult.Status.IsSuccess)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return response.SetError("ERR-400", $"Image Upload Failed: {imageResult?.Status?.StatusMessage}", null);
+                    }
+
+                    if (imageResult?.Content is not null)
+                    {
+                        var imgFile = JsonSerializer.Deserialize<Base64FileResult>(
+                            JsonSerializer.Serialize(imageResult.Content)
+                        );
+                        employee.ImageUrl = imgFile?.Base64 ?? string.Empty;
+                    }
                 }
 
-                // Set CV URL
-                employee.CvUrl = cvResult?.Content ?? string.Empty;
-
-                // Set Image Base64
-                if (imageResult?.Content != null)
-                {
-                    var imageJson = JsonSerializer.Serialize(imageResult.Content);
-                    var imgFile = JsonSerializer.Deserialize<Base64FileResult>(imageJson);
-                    employee.ImageUrl = imgFile?.Base64 ?? string.Empty;
-                }
-
-                // Insert into Database
                 await _db.Employees.AddAsync(employee, cancellationToken);
                 var saveResult = await _db.SaveChangesAsync(cancellationToken);
 

@@ -35,7 +35,7 @@ public class FileUtility : IFileUtility
     private bool IsFileSizeValid(long size) =>
         size > 0 && size <= MaxFileSizeBytes;
 
-    public async Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName, CancellationToken cancellationToken = default)
+    public async Task<MobileResponse<string>> SaveFileInternalAsync(IFormFile file, string folderName)
     {
         var response = new MobileResponse<string>(_configHandler, "FilesService");
 
@@ -57,7 +57,7 @@ public class FileUtility : IFileUtility
             var fullPath = Path.Combine(folderPath, fileName);
 
             await using var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            await file.CopyToAsync(stream, cancellationToken);
+            await file.CopyToAsync(stream);
 
             var relativePath = Path.Combine(folderName, fileName).Replace("\\", "/");
             return response.SetSuccess("SUCCESS-200", "File saved successfully.", relativePath);
@@ -68,7 +68,53 @@ public class FileUtility : IFileUtility
         }
     }
 
-    public async Task<MobileResponse<string>> SaveBase64FileAsync(string base64String, string fileName, string folderName, CancellationToken cancellationToken = default)
+    public async Task<MobileResponse<string>> SaveFileInternalAsyncFunction(IFormFile file, string folderName)
+    {
+        var response = new MobileResponse<string>(_configHandler, "FilesService");
+
+        const long maxAllowedSize = 5 * 1024 * 1024;
+        if (file.Length > maxAllowedSize)
+            return response.SetError("ERR-400", "File size exceeds 5MB.", null);
+
+        var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+        if (!IsExtensionAllowed(extension))
+            return response.SetError("ERR-400", $"File extension '{extension}' is not allowed.", null);
+
+        try
+        {
+            var safeName = Path.GetFileNameWithoutExtension(file.FileName)
+                .Replace(" ", "_")
+                .Replace(".", "_");
+
+            var fileName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
+            var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var folderPath = Path.Combine(rootPath, folderName);
+
+            Directory.CreateDirectory(folderPath);
+            var fullPath = Path.Combine(folderPath, fileName);
+
+            await using var inputStream = file.OpenReadStream();
+            await using var outputStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+            var buffer = new byte[81920]; // 80KB buffer
+            int bytesRead;
+            while ((bytesRead = await inputStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await outputStream.WriteAsync(buffer, 0, bytesRead);
+            }
+
+            var relativePath = Path.Combine(folderName, fileName).Replace("\\", "/");
+
+            return response.SetSuccess("SUCCESS-200", "File saved successfully.", relativePath);
+        }
+        catch (Exception ex)
+        {
+            return response.SetError("ERR-500", $"Failed to save file: {ex.Message}", null);
+        }
+    }
+
+
+    public async Task<MobileResponse<string>> SaveBase64FileAsync(string base64String, string fileName, string folderName)
     {
         var response = new MobileResponse<string>(_configHandler, "FilesService");
 
@@ -94,7 +140,7 @@ public class FileUtility : IFileUtility
             Directory.CreateDirectory(folderPath);
 
             var fullPath = Path.Combine(folderPath, generatedName);
-            await File.WriteAllBytesAsync(fullPath, fileBytes, cancellationToken);
+            await File.WriteAllBytesAsync(fullPath, fileBytes);
 
             var relativePath = Path.Combine(folderName, generatedName).Replace("\\", "/");
             return response.SetSuccess("SUCCESS-200", "Base64 file saved successfully.", relativePath);
@@ -119,7 +165,7 @@ public class FileUtility : IFileUtility
             : "application/octet-stream";
     }
 
-    public async Task<MobileResponse<object>> UploadImageAndConvertToBase64Async(UploadPhysicalImageViewModel model, CancellationToken cancellationToken = default)
+    public async Task<MobileResponse<object>> UploadImageAndConvertToBase64Async(UploadPhysicalImageViewModel model)
     {
         var response = new MobileResponse<object>(_configHandler, "FilesService");
 
@@ -127,7 +173,7 @@ public class FileUtility : IFileUtility
             return response.SetError("ERR-400", "Invalid image file.", null);
 
         await using var memoryStream = new MemoryStream();
-        await model.ImageFile.CopyToAsync(memoryStream, cancellationToken);
+        await model.ImageFile.CopyToAsync(memoryStream);
 
         var fileBytes = memoryStream.ToArray();
 

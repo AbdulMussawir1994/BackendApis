@@ -136,5 +136,18 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetSuccess("SUCCESS-200", "File path retrieved.", filePath);
         }
 
+        public async Task<MobileResponse<Dictionary<string, List<GetEmployeeDto>>>> GetAllEmployeesAsync()
+        {
+            var response = new MobileResponse<Dictionary<string, List<GetEmployeeDto>>>(_configHandler, "Employee");
+
+            var groupedEmployees = await _employeeDbAccess.GetAllEmployeesAsync();
+
+            if (groupedEmployees == null || !groupedEmployees.Any())
+            {
+                return response.SetError("ERR-404", "No employees found.", new Dictionary<string, List<GetEmployeeDto>>());
+            }
+
+            return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", groupedEmployees);
+        }
     }
 }

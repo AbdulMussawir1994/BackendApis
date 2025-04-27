@@ -106,12 +106,8 @@ namespace BackendApis.Controllers
                 : Ok(await _employeeLayer.PatchEmployeeAsync(model, cancellationToken));
         }
 
-        //public async Task<Dictionary<string, List<GetEmployeeDto>>> GetEstablishmentsGroupedByBusinessNatureAsync()
-        //{
-        //    return await _dbContext.Establishment
-        //        .AsNoTracking()
-        //        .GroupBy(e => e.BusinessNature)
-        //        .ToDictionaryAsync(g => g.Key, g => g.ToList());
-        //}
+        [HttpGet("GetAllEmployees")]
+        public async Task<IActionResult> GetAllEmployees() => Ok(await _employeeLayer.GetAllEmployeesAsync());
+
     }
 }

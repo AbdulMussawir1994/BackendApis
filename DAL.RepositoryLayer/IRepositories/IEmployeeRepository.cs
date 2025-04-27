@@ -17,5 +17,6 @@ namespace DAL.RepositoryLayer.IRepositories
         Task<MobileResponse<bool>> UpdateEmployeeAsync(UpdateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<MobileResponse<EmployeeListResponse>> GetEmployeesPaginationAsync(ViewEmployeeModel model, CancellationToken cancellationToken);
         Task<MobileResponse<string>> GetEmployeeFilePath(DownloadFileByIdViewModel model);
+        Task<MobileResponse<Dictionary<string, List<GetEmployeeDto>>>> GetAllEmployeesAsync();
     }
 }
