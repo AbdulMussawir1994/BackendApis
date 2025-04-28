@@ -46,26 +46,19 @@ public class FileUtility : IFileUtility
         if (!IsExtensionAllowed(extension))
             return response.SetError("ERR-400", $"Extension '{extension}' is not allowed.", null);
 
-        try
-        {
-            var safeName = GetSafeFileNameWithoutSpaces(Path.GetFileNameWithoutExtension(file.FileName));
-            var fileName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
+        var safeName = GetSafeFileNameWithoutSpaces(Path.GetFileNameWithoutExtension(file.FileName));
+        var fileName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
 
-            var folderPath = Path.Combine(WebRoot, folderName);
-            Directory.CreateDirectory(folderPath);
+        var folderPath = Path.Combine(WebRoot, folderName);
+        Directory.CreateDirectory(folderPath);
 
-            var fullPath = Path.Combine(folderPath, fileName);
+        var fullPath = Path.Combine(folderPath, fileName);
 
-            await using var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            await file.CopyToAsync(stream);
+        await using var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await file.CopyToAsync(stream);
 
-            var relativePath = Path.Combine(folderName, fileName).Replace("\\", "/");
-            return response.SetSuccess("SUCCESS-200", "File saved successfully.", relativePath);
-        }
-        catch (Exception ex)
-        {
-            return response.SetError("ERR-500", $"Saving failed: {ex.Message}", null);
-        }
+        var relativePath = Path.Combine(folderName, fileName).Replace("\\", "/");
+        return response.SetSuccess("SUCCESS-200", "File saved successfully.", relativePath);
     }
 
     public async Task<MobileResponse<string>> SaveFileInternalAsyncFunction(IFormFile file, string folderName)
@@ -80,37 +73,30 @@ public class FileUtility : IFileUtility
         if (!IsExtensionAllowed(extension))
             return response.SetError("ERR-400", $"File extension '{extension}' is not allowed.", null);
 
-        try
+        var safeName = Path.GetFileNameWithoutExtension(file.FileName)
+            .Replace(" ", "_")
+            .Replace(".", "_");
+
+        var fileName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
+        var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var folderPath = Path.Combine(rootPath, folderName);
+
+        Directory.CreateDirectory(folderPath);
+        var fullPath = Path.Combine(folderPath, fileName);
+
+        await using var inputStream = file.OpenReadStream();
+        await using var outputStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+        var buffer = new byte[81920]; // 80KB buffer
+        int bytesRead;
+        while ((bytesRead = await inputStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
         {
-            var safeName = Path.GetFileNameWithoutExtension(file.FileName)
-                .Replace(" ", "_")
-                .Replace(".", "_");
-
-            var fileName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
-            var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            var folderPath = Path.Combine(rootPath, folderName);
-
-            Directory.CreateDirectory(folderPath);
-            var fullPath = Path.Combine(folderPath, fileName);
-
-            await using var inputStream = file.OpenReadStream();
-            await using var outputStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
-
-            var buffer = new byte[81920]; // 80KB buffer
-            int bytesRead;
-            while ((bytesRead = await inputStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-            {
-                await outputStream.WriteAsync(buffer, 0, bytesRead);
-            }
-
-            var relativePath = Path.Combine(folderName, fileName).Replace("\\", "/");
-
-            return response.SetSuccess("SUCCESS-200", "File saved successfully.", relativePath);
+            await outputStream.WriteAsync(buffer, 0, bytesRead);
         }
-        catch (Exception ex)
-        {
-            return response.SetError("ERR-500", $"Failed to save file: {ex.Message}", null);
-        }
+
+        var relativePath = Path.Combine(folderName, fileName).Replace("\\", "/");
+
+        return response.SetSuccess("SUCCESS-200", "File saved successfully.", relativePath);
     }
 
 
@@ -118,37 +104,30 @@ public class FileUtility : IFileUtility
     {
         var response = new MobileResponse<string>(_configHandler, "FilesService");
 
-        try
-        {
-            var extension = Path.GetExtension(fileName)?.ToLowerInvariant() ?? ".jpg";
-            if (!IsExtensionAllowed(extension))
-                return response.SetError("ERR-400", $"Extension '{extension}' is not allowed.", null);
+        var extension = Path.GetExtension(fileName)?.ToLowerInvariant() ?? ".jpg";
+        if (!IsExtensionAllowed(extension))
+            return response.SetError("ERR-400", $"Extension '{extension}' is not allowed.", null);
 
-            var base64Content = base64String.Contains(",")
-                ? base64String[(base64String.IndexOf(",") + 1)..]
-                : base64String;
+        var base64Content = base64String.Contains(",")
+            ? base64String[(base64String.IndexOf(",") + 1)..]
+            : base64String;
 
-            var fileBytes = Convert.FromBase64String(base64Content);
+        var fileBytes = Convert.FromBase64String(base64Content);
 
-            if (!IsFileSizeValid(fileBytes.Length))
-                return response.SetError("ERR-400", "File exceeds maximum allowed size (5MB).", null);
+        if (!IsFileSizeValid(fileBytes.Length))
+            return response.SetError("ERR-400", "File exceeds maximum allowed size (5MB).", null);
 
-            var safeName = GetSafeFileNameWithoutSpaces(Path.GetFileNameWithoutExtension(fileName));
-            var generatedName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
-            var folderPath = Path.Combine(WebRoot, folderName);
+        var safeName = GetSafeFileNameWithoutSpaces(Path.GetFileNameWithoutExtension(fileName));
+        var generatedName = $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}{extension}";
+        var folderPath = Path.Combine(WebRoot, folderName);
 
-            Directory.CreateDirectory(folderPath);
+        Directory.CreateDirectory(folderPath);
 
-            var fullPath = Path.Combine(folderPath, generatedName);
-            await File.WriteAllBytesAsync(fullPath, fileBytes);
+        var fullPath = Path.Combine(folderPath, generatedName);
+        await File.WriteAllBytesAsync(fullPath, fileBytes);
 
-            var relativePath = Path.Combine(folderName, generatedName).Replace("\\", "/");
-            return response.SetSuccess("SUCCESS-200", "Base64 file saved successfully.", relativePath);
-        }
-        catch (Exception ex)
-        {
-            return response.SetError("ERR-500", $"Base64 decoding failed: {ex.Message}", null);
-        }
+        var relativePath = Path.Combine(folderName, generatedName).Replace("\\", "/");
+        return response.SetSuccess("SUCCESS-200", "Base64 file saved successfully.", relativePath);
     }
 
     public string ResolveAbsolutePath(string relativePath)

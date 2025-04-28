@@ -148,6 +148,12 @@ public static class DependencyInjectionSetup
         services.AddSingleton<ConfigHandler>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddleware>();
 
+        // Interceptors
+        //  services.AddScoped<AuditableEntitySaveChangesInterceptor>();
+        // services.AddScoped<SqlCommandInterceptor>();
+        //  services.AddScoped<TransactionInterceptor>();
+        //   services.AddScoped<ConnectionInterceptor>();
+        //  services.AddScoped<DataReaderInterceptor>();
 
         // 🔐 Decrypt Connection String
         var decryptedConnection = new AesGcmEncryption(configuration)

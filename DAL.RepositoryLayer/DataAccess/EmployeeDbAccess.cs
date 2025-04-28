@@ -38,7 +38,9 @@ namespace DAL.RepositoryLayer.DataAccess
                         Id = e.Id.ToString().ToLower(),
                         EmployeeName = e.Name,
                         Age = e.Age,
-                        Salary = e.Salary
+                        Salary = e.Salary,
+                        Image = e.ImageUrl,
+                        Cv = e.CvUrl,
                     }).ToList()
                 })
                 .ToDictionaryAsync(group => group.Name, group => group.Employees);

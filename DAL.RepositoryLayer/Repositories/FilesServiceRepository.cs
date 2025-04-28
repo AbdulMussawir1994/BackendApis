@@ -62,14 +62,9 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<object>(_configHandler, "FilesService");
 
-            var absolutePath = _fileUtility.ResolveAbsolutePath(model.FilePath);
-
-            if (!System.IO.File.Exists(absolutePath))
-                return response.SetError("ERR-404", "File not found.", false);
-
             try
             {
-                await using var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                await using var stream = new FileStream(model.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 using var memory = new MemoryStream();
                 await stream.CopyToAsync(memory);
 
@@ -77,8 +72,8 @@ namespace DAL.RepositoryLayer.Repositories
 
                 var result = new
                 {
-                    FileName = Path.GetFileName(absolutePath),
-                    FileType = _fileUtility.GetContentType(absolutePath),
+                    FileName = Path.GetFileName(model.FilePath),
+                    FileType = _fileUtility.GetContentType(model.FilePath),
                     Base64 = base64File
                 };
 
@@ -95,7 +90,6 @@ namespace DAL.RepositoryLayer.Repositories
             // Same as GetImageAsync (can extend if you want extra logging for downloads separately)
             return await GetImageAsync(imageUrl);
         }
-
 
         public async Task<(Stream FileStream, string ContentType, string FileName)> GetImageAsync(string imageUrl)
         {
@@ -133,6 +127,31 @@ namespace DAL.RepositoryLayer.Repositories
                 return response.SetError("ERR-500", "File conversion failed.", false);
 
             return response.SetSuccess("SUCCESS-200", "File converted to Base64 successfully.", fileResult.Content);
+        }
+
+
+        public string? GetImageContentType(byte[] imageBytes)
+        {
+            if (imageBytes.Length < 4)
+                return null;
+
+            // JPEG magic number
+            if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8)
+                return "image/jpeg";
+
+            // PNG magic number
+            if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50 && imageBytes[2] == 0x4E && imageBytes[3] == 0x47)
+                return "image/png";
+
+            // GIF magic number
+            if (imageBytes[0] == 0x47 && imageBytes[1] == 0x49 && imageBytes[2] == 0x46)
+                return "image/gif";
+
+            // BMP magic number
+            if (imageBytes[0] == 0x42 && imageBytes[1] == 0x4D)
+                return "image/bmp";
+
+            return null;
         }
     }
 }

@@ -47,4 +47,11 @@ public class Base64FileResult
     public string Base64 { get; set; }
 }
 
+public class Base64ToImageViewModel
+{
+    [Required(ErrorMessage = "Id is required.")]
+    public string Id { get; set; }
+    public string FileName { get; set; } = string.Empty;    // Example: "photo.jpg"
+}
+
 

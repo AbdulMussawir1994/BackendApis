@@ -57,6 +57,17 @@ try
         .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
     );
 
+    //    builder.Services.AddDbContextPool<InterceptorDbContext>(options =>
+    //options
+    //    .UseSqlServer(
+    //        new AesGcmEncryption(builder.Configuration).Decrypt(
+    //            builder.Configuration.GetConnectionString("InterceptorConnection")
+    //        ),
+    //        sqlOptions => sqlOptions.CommandTimeout((int)TimeSpan.FromMinutes(1).TotalSeconds)
+    //    )
+    //    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+    //);
+
     // 🔹 Redis Caching
     builder.Services.AddStackExchangeRedisCache(options =>
     {

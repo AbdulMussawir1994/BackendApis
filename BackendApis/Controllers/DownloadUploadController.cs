@@ -76,15 +76,33 @@ public class DownloadUploadController : WebBaseController
         return File(stream, contentType, Path.GetFileName(absolutePath));
     }
 
-    [HttpGet("DownloadFileBase64")]
-    public async Task<IActionResult> DownloadFileBase64([FromQuery] DownloadFileViewModel model)
+    //   [HttpPost("DownloadFileBase64ById/{Id}")]
+    [HttpPost("DownloadBase64Image")]
+    public async Task<IActionResult> DownloadBase64Image([FromBody] Base64ToImageViewModel model)
     {
         var validation = this.ModelValidator(model);
+
         if (!validation.Status.IsSuccess)
             return Ok(validation);
 
-        var result = await _serviceRepository.DownloadFileAsBase64Async(model);
-        return Ok(result);
+        var pathResponse = await _employeeRepository.GetEmployeeFilePath(new DownloadFileByIdViewModel
+        {
+            Id = model.Id,
+            FileType = "image"
+        });
+
+        if (!pathResponse.Status.IsSuccess || string.IsNullOrWhiteSpace(pathResponse.Content))
+            return NotFound(pathResponse);
+
+        byte[] imageBytes = Convert.FromBase64String(pathResponse.Content);
+
+        var contentType = _serviceRepository.GetImageContentType(imageBytes) ?? "application/octet-stream";
+
+        var fileName = string.IsNullOrWhiteSpace(model.FileName)
+            ? $"image_{DateTime.UtcNow:yyyyMMddHHmmss}.jpg"
+            : model.FileName;
+
+        return File(imageBytes, contentType, fileName);
     }
 
     [HttpPost("DownloadById")]
