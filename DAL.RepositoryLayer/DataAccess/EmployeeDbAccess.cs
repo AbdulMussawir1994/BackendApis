@@ -383,5 +383,28 @@ namespace DAL.RepositoryLayer.DataAccess
                 .Select(e => model.FileType.ToLowerInvariant() == "cv" ? e.CvUrl : e.ImageUrl)
                 .FirstOrDefaultAsync();
         }
+        public async Task<List<GetEmployeeDto>> GetEmployeesKeysetAsync(Guid? lastId, int pageSize, CancellationToken cancellationToken)
+        {
+            var query = _db.Employees
+                .AsNoTracking()
+                .Where(e => e.IsActive);
+
+            if (lastId.HasValue)
+                query = query.Where(e => e.Id.CompareTo(lastId.Value) > 0);
+
+            return await query
+                .OrderBy(e => e.Id)
+                .Take(pageSize)
+                .Select(e => new GetEmployeeDto
+                {
+                    Id = e.Id.ToString().ToLower(),
+                    EmployeeName = e.Name,
+                    Age = e.Age,
+                    Salary = e.Salary
+                })
+                .ToListAsync(cancellationToken);
+        }
+
+
     }
 }

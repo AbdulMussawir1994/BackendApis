@@ -19,5 +19,6 @@ namespace DAL.RepositoryLayer.IDataAccess
         Task<EmployeeListResponse> GetEmployeesCount(ViewEmployeeModel model, CancellationToken cancellationToken);
         Task<string> GetEmployeeFilePathByIdAsync(DownloadFileByIdViewModel model);
         Task<Dictionary<string, List<GetEmployeeDto>>> GetAllEmployeesAsync();
+        Task<List<GetEmployeeDto>> GetEmployeesKeysetAsync(Guid? lastId, int pageSize, CancellationToken cancellationToken);
     }
 }

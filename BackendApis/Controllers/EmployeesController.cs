@@ -107,7 +107,19 @@ namespace BackendApis.Controllers
         }
 
         [HttpGet("GetAllEmployees")]
-        public async Task<IActionResult> GetAllEmployees() => Ok(await _employeeLayer.GetAllEmployeesAsync());
+        public async Task<ActionResult> GetAllEmployees() => Ok(await _employeeLayer.GetAllEmployeesAsync());
+
+        [HttpGet("keyset-pagination")]
+        public async Task<IActionResult> GetEmployeesKeyset([FromQuery] KeysetPaginationRequest model, CancellationToken cancellationToken = default)
+        {
+            var validation = this.ModelValidator(model);
+
+            if (!validation.Status.IsSuccess)
+                return Ok(validation);
+
+            var result = await _employeeLayer.GetEmployeesKeysetAsync(model, cancellationToken);
+            return Ok(result);
+        }
 
     }
 }

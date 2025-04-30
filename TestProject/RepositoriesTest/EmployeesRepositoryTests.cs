@@ -86,4 +86,165 @@ public class EmployeesRepositoryTests
 
         result.Status.IsSuccess.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task GetEmployeesListAsync_ShouldReturnSuccess1()
+    {
+        // Arrange
+        var expectedEmployees = new List<GetEmployeeDto> { new() { EmployeeName = "John" } }.AsQueryable();
+
+        var viewModel = new ViewEmployeeModel
+        {
+            PageNumber = 1,
+            PageSize = 10
+        };
+
+        _dbMock.Setup(x => x.GetEmployees(It.IsAny<ViewEmployeeModel>()))
+               .Returns(expectedEmployees);
+
+        // Act
+        var result = await _repository.GetEmployeesListAsync(viewModel);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeTrue();
+        result.Content.Should().NotBeNull();
+        result.Content.Should().BeEquivalentTo(expectedEmployees);
+    }
+
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldReturnSuccess1()
+    {
+        // Arrange
+        var model = new CreateEmployeeViewModel
+        {
+            Name = "John",
+            ApplicationUserId = Guid.NewGuid().ToString()
+        };
+
+        var expectedResponse = new MobileResponse<string>(_configHandler, "employee")
+            .SetSuccess("SUCCESS-200", "Created", null);
+
+        _dbMock.Setup(x => x.CreateEmployee1(model, It.IsAny<CancellationToken>()))
+               .ReturnsAsync(expectedResponse);
+
+        // Act
+        var result = await _repository.CreateEmployeeAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeTrue();
+        result.Status.StatusMessage.Should().Be("Created");
+    }
+
+    [Fact]
+    public async Task UpdateEmployeeAsync_ShouldReturnSuccess1()
+    {
+        // Arrange
+        var model = new UpdateEmployeeViewModel
+        {
+            Name = "Update",
+            ApplicationUserId = Guid.NewGuid().ToString()
+        };
+
+        _dbMock.Setup(x => x.UpdateEmployee(model, It.IsAny<CancellationToken>()))
+               .ReturnsAsync(true);
+
+        // Act
+        var result = await _repository.UpdateEmployeeAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeTrue();
+        result.Status.StatusMessage.Should().Be("Employee updated successfully.");
+    }
+
+    [Fact]
+    public async Task GetEmployeeByIdAsync_ShouldReturnSuccess1()
+    {
+        // Arrange
+        var model = new EmployeeIdViewModel { Id = Guid.NewGuid().ToString() };
+        var expectedEmployee = new GetEmployeeDto { EmployeeName = "Test" };
+
+        _dbMock.Setup(x => x.GetEmployeeById(model, It.IsAny<CancellationToken>()))
+               .ReturnsAsync(expectedEmployee);
+
+        // Act
+        var result = await _repository.GetEmployeeByIdAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeTrue();
+        result.Content.Value.EmployeeName.Should().Be("Test");
+    }
+
+    [Fact]
+    public async Task GetEmployeesListAsync_ShouldReturnError_WhenNoEmployeesFound()
+    {
+        // Arrange
+        var viewModel = new ViewEmployeeModel { PageNumber = 1, PageSize = 10 };
+        var emptyResult = Enumerable.Empty<GetEmployeeDto>().AsQueryable();
+
+        _dbMock.Setup(x => x.GetEmployees(viewModel)).Returns(emptyResult);
+
+        // Act
+        var result = await _repository.GetEmployeesListAsync(viewModel);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("No employees found.");
+        result.Content.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldReturnError_WhenApplicationUserIdInvalid()
+    {
+        // Arrange
+        var model = new CreateEmployeeViewModel
+        {
+            Name = "Invalid",
+            ApplicationUserId = "not-a-guid" // ❌ Invalid
+        };
+
+        // Act
+        var result = await _repository.CreateEmployeeAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Invalid application user ID.");
+    }
+
+    [Fact]
+    public async Task UpdateEmployeeAsync_ShouldReturnError_WhenUpdateFails()
+    {
+        // Arrange
+        var model = new UpdateEmployeeViewModel
+        {
+            Name = "Fail",
+            ApplicationUserId = Guid.NewGuid().ToString()
+        };
+
+        _dbMock.Setup(x => x.UpdateEmployee(model, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        // Act
+        var result = await _repository.UpdateEmployeeAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Failed to update employee.");
+    }
+
+    [Fact]
+    public async Task GetEmployeeByIdAsync_ShouldReturnError_WhenEmployeeNotFound()
+    {
+        // Arrange
+        var model = new EmployeeIdViewModel { Id = Guid.NewGuid().ToString() };
+
+        _dbMock.Setup(x => x.GetEmployeeById(model, It.IsAny<CancellationToken>())).ReturnsAsync((GetEmployeeDto?)null);
+
+        // Act
+        var result = await _repository.GetEmployeeByIdAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Employee not found.");
+    }
+
+
 }

@@ -47,6 +47,12 @@ public class EmployeeListResponse
     public int TotalRecords { get; set; }
 }
 
+public class KeysetPaginationRequest
+{
+    public required string? LastId { get; set; }
+    public required int PageSize { get; set; } = 10;
+}
+
 //public class EmployeeListViewModel
 //{
 //    public string Id { get; set; }

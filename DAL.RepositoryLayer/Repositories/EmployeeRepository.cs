@@ -149,5 +149,40 @@ namespace DAL.RepositoryLayer.Repositories
 
             return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", groupedEmployees);
         }
+
+        public async Task<MobileResponse<object>> GetEmployeesKeysetAsync(KeysetPaginationRequest model, CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<object>(_configHandler, "employee");
+
+            // ✅ Parse and validate LastId
+            Guid? lastGuid = null;
+            if (!string.IsNullOrWhiteSpace(model.LastId))
+            {
+                if (!Guid.TryParse(model.LastId, out Guid parsed))
+                    return response.SetError("ERR-400", "Invalid LastId format.", null);
+
+                lastGuid = parsed;
+            }
+
+            // ✅ Fetch data
+            var employees = await _employeeDbAccess.GetEmployeesKeysetAsync(lastGuid, model.PageSize, cancellationToken);
+
+            // ✅ Handle empty result
+            if (employees is null || !employees.Any())
+            {
+                return response.SetError("ERR-404", "No employees found.", new
+                {
+                    lastId = (Guid?)null,
+                    employees = new List<GetEmployeeDto>()
+                });
+            }
+
+            // ✅ Return paginated result with last ID
+            return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", new
+            {
+                lastId = employees[^1].Id, // 🧠 last fetched ID
+                employees
+            });
+        }
     }
 }
