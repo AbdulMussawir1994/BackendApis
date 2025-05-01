@@ -13,7 +13,7 @@ namespace TestProject.ControllerTests;
 
 public class EmployeesControllerTests
 {
-    private readonly EmployeesController _controller;
+    private readonly EmployeeTController _controller;
     private readonly Mock<IEmployeeRepository> _repositoryMock;
     private readonly ConfigHandler _configHandler;
 
@@ -21,7 +21,7 @@ public class EmployeesControllerTests
     {
         _repositoryMock = new Mock<IEmployeeRepository>();
         _configHandler = MockConfigHandler.Create(); // ✅ Just one line now
-        _controller = new EmployeesController(_configHandler, _repositoryMock.Object);
+        _controller = new EmployeeTController(_repositoryMock.Object);
     }
 
     [Fact]

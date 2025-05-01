@@ -122,7 +122,7 @@ public class EmployeesRepositoryTests
         };
 
         var expectedResponse = new MobileResponse<string>(_configHandler, "employee")
-            .SetSuccess("SUCCESS-200", "Created", null);
+            .SetSuccess("SUCCESS-200", "Employee created successfully", null);
 
         _dbMock.Setup(x => x.CreateEmployee1(model, It.IsAny<CancellationToken>()))
                .ReturnsAsync(expectedResponse);
@@ -132,7 +132,7 @@ public class EmployeesRepositoryTests
 
         // Assert
         result.Status.IsSuccess.Should().BeTrue();
-        result.Status.StatusMessage.Should().Be("Created");
+        result.Status.StatusMessage.Should().Be("Employee created successfully.");
     }
 
     [Fact]

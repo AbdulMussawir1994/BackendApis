@@ -19,9 +19,8 @@ using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Polly;
-using Polly.CircuitBreaker;
-using Polly.Retry;
 using Quartz;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -184,32 +183,40 @@ public static class DependencyInjectionSetup
         services.AddHttpClient(); // Required for default HttpClient
 
         // 🔁 Polly Resilience & Circuit Breaker
-        services.AddResiliencePipeline("GlobalHttpPolicy", builder =>
+        services.AddHttpClient("ResilientClient", client =>
         {
-            // Retry with exponential backoff
-            builder.AddRetry(new RetryStrategyOptions
-            {
-                ShouldHandle = new PredicateBuilder()
-                    .Handle<HttpRequestException>()
-                    .HandleResult(response => !((HttpResponseMessage)response).IsSuccessStatusCode),
-                BackoffType = DelayBackoffType.Exponential,
-                MaxRetryAttempts = 3,
-                Delay = TimeSpan.FromSeconds(2),
-                UseJitter = true
-            });
+            client.BaseAddress = new Uri("https://example.com");
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        })
+        .AddPolicyHandler(PollyResilienceHelper.GetResiliencePipeline());
 
-            // Circuit Breaker
-            builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
-            {
-                ShouldHandle = new PredicateBuilder()
-                    .Handle<HttpRequestException>()
-                    .HandleResult(response => !((HttpResponseMessage)response).IsSuccessStatusCode),
-                FailureRatio = 0.5,
-                SamplingDuration = TimeSpan.FromSeconds(10),
-                MinimumThroughput = 8,
-                BreakDuration = TimeSpan.FromSeconds(30)
-            });
-        });
+
+        //services.AddResiliencePipeline("GlobalHttpPolicy", builder =>
+        //{
+        //    // Retry with exponential backoff
+        //    builder.AddRetry(new RetryStrategyOptions
+        //    {
+        //        ShouldHandle = new PredicateBuilder()
+        //            .Handle<HttpRequestException>()
+        //            .HandleResult(response => !((HttpResponseMessage)response).IsSuccessStatusCode),
+        //        BackoffType = DelayBackoffType.Exponential,
+        //        MaxRetryAttempts = 3,
+        //        Delay = TimeSpan.FromSeconds(2),
+        //        UseJitter = true
+        //    });
+
+        //    // Circuit Breaker
+        //    builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+        //    {
+        //        ShouldHandle = new PredicateBuilder()
+        //            .Handle<HttpRequestException>()
+        //            .HandleResult(response => !((HttpResponseMessage)response).IsSuccessStatusCode),
+        //        FailureRatio = 0.5,
+        //        SamplingDuration = TimeSpan.FromSeconds(10),
+        //        MinimumThroughput = 8,
+        //        BreakDuration = TimeSpan.FromSeconds(30)
+        //    });
+        //});
 
         // 💥 Apply globally to all HttpClient instances
         //services.ConfigureAll<HttpClientFactoryOptions>(options =>
@@ -218,8 +225,6 @@ public static class DependencyInjectionSetup
         //  });
 
         // 🚦 Rate Limiting
-
-
         services.AddRateLimiter(options =>
         {
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
