@@ -160,35 +160,33 @@ public class AuthRepositoryTests : IDisposable
     public async Task RegisterUser_Should_Return_Error_When_CNIC_Already_Exists()
     {
         // Arrange
-        var existingUser = new AppUser
-        {
-            Id = "existing_user",
-            CNIC = "123456789",
-            Email = "existing@example.com",
-            PhoneNumber = "9876543210"
-        };
-
-        await _dbContext.Users.AddAsync(existingUser);
-        await _dbContext.SaveChangesAsync();
-
-        // ✅ Fix: Detach existing user to prevent tracking conflict
-        _dbContext.ChangeTracker.Clear();
-
         var registerModel = new RegisterViewModel
         {
-            CNIC = "123456789", // ❌ CNIC already exists
+            CNIC = "123456789", // CNIC to simulate as already existing
             Email = "new@example.com",
             MobileNo = "1234567890",
             Username = "newuser"
         };
+
         var cancellationToken = new CancellationToken();
+
+        // 🧠 Mock CNIC check to simulate "already exists"
+        _mockDatabaseAccess.Setup(x => x.FindCNICAsync(registerModel.CNIC, cancellationToken))
+                           .ReturnsAsync(true);
+
+        // ✅ You should also mock the other methods to avoid hitting them
+        _mockDatabaseAccess.Setup(x => x.FindEmailAsync(It.IsAny<string>(), cancellationToken))
+                           .ReturnsAsync(false);
+
+        _mockDatabaseAccess.Setup(x => x.FindMobileAsync(It.IsAny<string>(), cancellationToken))
+                           .ReturnsAsync(false);
 
         // Act
         var response = await _authRepository.RegisterUser(registerModel, cancellationToken);
 
         // Assert
-        response.Status.IsSuccess.Should().BeTrue();
-        response.Status.StatusMessage.Should().Be("OTP has been sent to the existing user for verification.");
+        response.Status.IsSuccess.Should().BeFalse();
+        response.Status.StatusMessage.Should().Be("CNIC number is already registered.");
     }
 
     //[Fact]

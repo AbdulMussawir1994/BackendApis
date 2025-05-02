@@ -92,14 +92,14 @@ namespace DAL.RepositoryLayer.Repositories
             //    return response.SetError("ERR-1003", "Invalid password or account type not found.");
 
             // ✅ Get user's primary role dynamically
-            //var roles = await _userManager.GetRolesAsync(user);
-            //if (roles is null || !roles.Any())
-            //    roles = new List<string> { "User" };
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles is null || !roles.Any())
+                roles = new List<string> { "User" };
 
             // ✅ Generate encrypted JWT and refresh tokens
             //var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtToken(user.Id, roles, user.Email));
             //  var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtTokenWithReact(user.Id, user.Email));
-            var jwtToken = _aesGcmEncryption.Encrypt(GenerateKmacJwtToken(user.Id, "User", user.Email));
+            var jwtToken = _aesGcmEncryption.Encrypt(GenerateKmacJwtToken(user.Id, roles, user.Email));
             //   var jwtToken = GenerateSecureJwtToken(user.Id, roles, user.Email);
             var refreshToken = _aesGcmEncryption.Encrypt(GenerateRefreshKmacJwtToken(user.Id));
             //var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
@@ -208,10 +208,10 @@ namespace DAL.RepositoryLayer.Repositories
             if (roles is null || !roles.Any())
                 roles = new List<string> { "User" };
 
-            var newAccessToken = GenerateSecureJwtToken(user.Id, roles, user.Email);
+            var newAccessToken = GenerateKmacJwtToken(user.Id, roles, user.Email);
             var encryptedAccessToken = _aesGcmEncryption.Encrypt(newAccessToken);
 
-            var newRefreshToken = GenerateRefreshJwtToken(user.Id);
+            var newRefreshToken = GenerateRefreshKmacJwtToken(user.Id);
             var encryptedRefreshToken = _aesGcmEncryption.Encrypt(newRefreshToken);
 
             await SaveRefreshToken(user, newRefreshToken);
@@ -491,7 +491,7 @@ namespace DAL.RepositoryLayer.Repositories
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, pakistanTimeZone);
         }
 
-        public string GenerateKmacJwtToken(string userId, string role, string email)
+        public string GenerateKmacJwtToken(string userId, IEnumerable<string> roles, string email)
         {
             var utcNow = DateTime.UtcNow;
             var issuer = _configuration["JWTKey:ValidIssuer"];
@@ -502,20 +502,22 @@ namespace DAL.RepositoryLayer.Repositories
             var keyBytes = Encoding.UTF8.GetBytes(secret);
 
             // Derive HMAC key using KMAC256
-            var derivedKey = DeriveKmacKey(userId, role, email, keyBytes);
+            var derivedKey = DeriveKmacKey(userId, roles, email, keyBytes);
 
             var signingKey = new SymmetricSecurityKey(derivedKey);
             var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha512);
 
             var claims = new List<Claim>
-    {
-        new(JwtRegisteredClaimNames.Sub, userId),
-        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-        new(ClaimTypes.NameIdentifier, userId),
-        new(ClaimTypes.Email, email),
-        new(ClaimTypes.Role, role)
-    };
+            {
+                   new(JwtRegisteredClaimNames.Sub, userId),
+                   new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                   new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                   new(ClaimTypes.NameIdentifier, userId),
+                   new(ClaimTypes.Email, email),
+            };
+
+            // ✅ Add all roles as separate claims
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -531,9 +533,11 @@ namespace DAL.RepositoryLayer.Repositories
             return handler.WriteToken(token);
         }
 
-        private static byte[] DeriveKmacKey(string userId, string role, string email, byte[] secret)
+        private static byte[] DeriveKmacKey(string userId, IEnumerable<string> roles, string email, byte[] secret)
         {
-            var inputData = Encoding.UTF8.GetBytes($"{userId}|{role}|{email}");
+            var rolesString = string.Join(",", roles.OrderBy(r => r)); // 🔐 Always sort for consistency
+            var inputData = Encoding.UTF8.GetBytes($"{userId}|{rolesString}|{email}");
+
             var kmac = new Org.BouncyCastle.Crypto.Macs.KMac(256, secret);
             kmac.Init(new Org.BouncyCastle.Crypto.Parameters.KeyParameter(secret));
             kmac.BlockUpdate(inputData, 0, inputData.Length);

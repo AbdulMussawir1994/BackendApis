@@ -240,17 +240,18 @@ public class EnterpriseCustomMiddleware
                 ClockSkew = TimeSpan.Zero,
                 IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
                 {
-                    var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+                    var jwt = tokenHandler.ReadJwtToken(token);
 
-                    // Efficient extraction of critical claims
                     var userId = jwt.Payload.TryGetValue("sub", out var sub) ? sub?.ToString() : null;
-                    var role = jwt.Payload.TryGetValue("role", out var r) ? r?.ToString() : null;
                     var email = jwt.Payload.TryGetValue("email", out var e) ? e?.ToString() : null;
 
-                    if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(role) || string.IsNullOrWhiteSpace(email))
+                    // 🔐 Support multiple roles
+                    var roles = ExtractRolesFromPayload(jwt.Payload);
+
+                    if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(email) || !roles.Any())
                         return Enumerable.Empty<SecurityKey>();
 
-                    var derivedKey = DeriveKmacKey(userId, role, email, baseKey);
+                    var derivedKey = DeriveKmacKey(userId, roles, email, baseKey);
                     return new[] { new SymmetricSecurityKey(derivedKey) };
                 }
             };
@@ -276,9 +277,26 @@ public class EnterpriseCustomMiddleware
         }
     }
 
-    private static byte[] DeriveKmacKey(string userId, string role, string email, byte[] secret)
+    private static IEnumerable<string> ExtractRolesFromPayload(IDictionary<string, object> payload)
     {
-        var inputData = Encoding.UTF8.GetBytes($"{userId}|{role}|{email}");
+        if (payload.TryGetValue("role", out var rolesObj) && rolesObj != null)
+        {
+            return rolesObj switch
+            {
+                string singleRole => new[] { singleRole },
+                IEnumerable<object> multipleRoles => multipleRoles.Select(r => r.ToString()!).Where(r => !string.IsNullOrWhiteSpace(r)),
+                _ => Enumerable.Empty<string>()
+            };
+        }
+
+        return Enumerable.Empty<string>();
+    }
+
+    private static byte[] DeriveKmacKey(string userId, IEnumerable<string> roles, string email, byte[] secret)
+    {
+        var rolesString = string.Join(",", roles.OrderBy(r => r)); // 🔐 Always sort for consistency
+        var inputData = Encoding.UTF8.GetBytes($"{userId}|{rolesString}|{email}");
+
         var kmac = new Org.BouncyCastle.Crypto.Macs.KMac(256, secret);
         kmac.Init(new Org.BouncyCastle.Crypto.Parameters.KeyParameter(secret));
         kmac.BlockUpdate(inputData, 0, inputData.Length);

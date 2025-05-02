@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendApis.Controllers
 {
     [ApiController]
-    //[Authorize]
-    [AllowAnonymous]
+    [Authorize]
+    // [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class EmployeesController : WebBaseController
