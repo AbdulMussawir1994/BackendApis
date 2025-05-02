@@ -237,7 +237,8 @@ public class EnterpriseCustomMiddleware
                 ValidAudience = audience,
                 ValidateLifetime = true,
                 RequireExpirationTime = true,
-                ClockSkew = TimeSpan.Zero,
+                // ClockSkew = TimeSpan.Zero,
+                ClockSkew = TimeSpan.FromMinutes(1),// Allows 1 minute of clock drift
                 IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
                 {
                     var jwt = tokenHandler.ReadJwtToken(token);

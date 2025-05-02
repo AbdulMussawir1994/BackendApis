@@ -101,9 +101,10 @@ namespace DAL.RepositoryLayer.Repositories
             //  var jwtToken = _aesGcmEncryption.Encrypt(GenerateSecureJwtTokenWithReact(user.Id, user.Email));
             var jwtToken = _aesGcmEncryption.Encrypt(GenerateKmacJwtToken(user.Id, roles, user.Email));
             //   var jwtToken = GenerateSecureJwtToken(user.Id, roles, user.Email);
-            var refreshToken = _aesGcmEncryption.Encrypt(GenerateRefreshKmacJwtToken(user.Id));
-            //var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
-            // var encryptedRefreshToken = refreshToken;
+            //   var refreshToken = _aesGcmEncryption.Encrypt(GenerateRefreshKmacJwtToken(user.Id));
+            var refreshToken = GenerateRefreshKmacJwtToken(user.Id);
+            var encryptedRefreshToken = _aesGcmEncryption.Encrypt(refreshToken);
+            //    var encryptedRefreshToken = refreshToken;
 
             await SaveRefreshToken(user, refreshToken);
 
@@ -115,7 +116,7 @@ namespace DAL.RepositoryLayer.Repositories
                 AccessToken = jwtToken,
                 Id = user.Id,
                 ExpireTokenTime = tokenExpiry,
-                RefreshToken = refreshToken
+                RefreshToken = encryptedRefreshToken
             });
         }
 
@@ -188,21 +189,42 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetError("ERR-1000", "Failed to save password.");
         }
 
+        // Modified method: RefreshTokenAsync
         public async Task<MobileResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
         {
             var response = new MobileResponse<RefreshTokenResponse>(_configHandler, "user");
 
-            string decryptedToken = _aesGcmEncryption.Decrypt(request.RefreshToken);
+            var decryptedToken = _aesGcmEncryption.Decrypt(request.RefreshToken);
+
+            if (!IsValidJwtFormat(decryptedToken))
+            {
+                return response.SetError("ERR-1004", "Invalid JWT structure.");
+            }
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(decryptedToken);
+
+            if (jwtToken.ValidTo < DateTime.UtcNow)
+            {
+                return response.SetError("ERR-1006", "Refresh token has expired.");
+            }
+
+            if (!jwtToken.Claims.Any(c => c.Type == "type" && c.Value == "refresh"))
+            {
+                return response.SetError("ERR-1007", "Refresh token type is invalid.");
+            }
+
+            var UserId = !string.IsNullOrWhiteSpace(_configHandler.UserId) ? _configHandler.UserId : "1";
 
             var user = await _userManager.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == UserId, cancellationToken);
 
             if (user is null)
                 return response.SetError("ERR-1001", "User not found.");
 
             if (!string.Equals(user.RefreshGuid, decryptedToken, StringComparison.Ordinal))
-                return response.SetError("ERR-1005", "Refresh token is invalid or expired.");
+                return response.SetError("ERR-1005", "Refresh token is invalid.");
 
             var roles = await _userManager.GetRolesAsync(user);
             if (roles is null || !roles.Any())
@@ -218,7 +240,7 @@ namespace DAL.RepositoryLayer.Repositories
 
             var tokenExpiry = long.TryParse(_configuration["JWTKey:TokenExpiryTimeInMinutes"], out var expiryMinutes)
                 ? expiryMinutes
-                : 30; // default to 30 mins
+                : 30;
 
             var tokenValidity = DateTime.UtcNow.AddMinutes(tokenExpiry);
 
@@ -246,6 +268,13 @@ namespace DAL.RepositoryLayer.Repositories
         }
 
         #region Private Methods
+        private static bool IsValidJwtFormat(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return false;
+
+            var parts = token.Split('.');
+            return parts.Length == 3 && parts.All(p => !string.IsNullOrWhiteSpace(p));
+        }
 
         private async Task<bool> SaveRefreshToken(AppUser user, string refreshToken)
         {

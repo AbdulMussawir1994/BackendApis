@@ -124,7 +124,7 @@ public static class DependencyInjectionSetup
                 ValidIssuer = configuration["JWTKey:ValidIssuer"],
                 ValidAudience = configuration["JWTKey:ValidAudience"],
                 RequireExpirationTime = true,
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.FromMinutes(1)
             };
         });
 

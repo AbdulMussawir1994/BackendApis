@@ -4,9 +4,9 @@ namespace DAL.DatabaseLayer.ViewModels.AuthModels;
 
 public class RefreshTokenRequest
 {
-    [Required(ErrorMessage = "User ID is required.")]
-    [MinLength(1, ErrorMessage = "User ID cannot be empty.")]
-    public string Id { get; set; } = string.Empty;
+    //[Required(ErrorMessage = "User ID is required.")]
+    // [MinLength(1, ErrorMessage = "User ID cannot be empty.")]
+    // public string Id { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Refresh token is required.")]
     [MinLength(1, ErrorMessage = "Refresh token cannot be empty.")]
