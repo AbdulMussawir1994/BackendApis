@@ -215,7 +215,7 @@ public class EnterpriseCustomMiddleware
     //}
 
     //for KMAC
-    private (ClaimsPrincipal? Principal, string? ErrorMessage) ValidateTokenAndGetPrincipal(string jwt)
+    public (ClaimsPrincipal? Principal, string? ErrorMessage) ValidateTokenAndGetPrincipal(string jwt)
     {
         if (string.IsNullOrWhiteSpace(jwt))
             return (null, "JWT token is missing.");
@@ -233,24 +233,32 @@ public class EnterpriseCustomMiddleware
                 ValidateIssuerSigningKey = true,
                 ValidateIssuer = true,
                 ValidateAudience = true,
-                ValidIssuer = issuer,
-                ValidAudience = audience,
                 ValidateLifetime = true,
                 RequireExpirationTime = true,
-                // ClockSkew = TimeSpan.Zero,
-                ClockSkew = TimeSpan.FromMinutes(1),// Allows 1 minute of clock drift
+                ClockSkew = TimeSpan.FromMinutes(1),
+                ValidIssuer = issuer,
+                ValidAudience = audience,
+
                 IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
                 {
-                    var jwt = tokenHandler.ReadJwtToken(token);
+                    var jwtToken = tokenHandler.ReadJwtToken(token);
 
-                    var userId = jwt.Payload.TryGetValue("sub", out var sub) ? sub?.ToString() : null;
-                    var email = jwt.Payload.TryGetValue("email", out var e) ? e?.ToString() : null;
+                    var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value
+                                 ?? jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-                    // 🔐 Support multiple roles
-                    var roles = ExtractRolesFromPayload(jwt.Payload);
+                    var email = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value
+                                ?? jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
 
-                    if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(email) || !roles.Any())
-                        return Enumerable.Empty<SecurityKey>();
+                    var roles = jwtToken.Claims
+                        .Where(c => c.Type == ClaimTypes.Role || c.Type.Equals("role", StringComparison.OrdinalIgnoreCase))
+                        .Select(c => c.Value)
+                        .OrderBy(r => r)
+                        .ToList();
+
+                    if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(email) || roles.Count == 0)
+                    {
+                        throw new SecurityTokenException("Token is missing required claims.");
+                    }
 
                     var derivedKey = DeriveKmacKey(userId, roles, email, baseKey);
                     return new[] { new SymmetricSecurityKey(derivedKey) };
@@ -278,24 +286,9 @@ public class EnterpriseCustomMiddleware
         }
     }
 
-    private static IEnumerable<string> ExtractRolesFromPayload(IDictionary<string, object> payload)
-    {
-        if (payload.TryGetValue("role", out var rolesObj) && rolesObj != null)
-        {
-            return rolesObj switch
-            {
-                string singleRole => new[] { singleRole },
-                IEnumerable<object> multipleRoles => multipleRoles.Select(r => r.ToString()!).Where(r => !string.IsNullOrWhiteSpace(r)),
-                _ => Enumerable.Empty<string>()
-            };
-        }
-
-        return Enumerable.Empty<string>();
-    }
-
     private static byte[] DeriveKmacKey(string userId, IEnumerable<string> roles, string email, byte[] secret)
     {
-        var rolesString = string.Join(",", roles.OrderBy(r => r)); // 🔐 Always sort for consistency
+        var rolesString = string.Join(",", roles.OrderBy(r => r)); // Ensure order is consistent
         var inputData = Encoding.UTF8.GetBytes($"{userId}|{rolesString}|{email}");
 
         var kmac = new Org.BouncyCastle.Crypto.Macs.KMac(256, secret);

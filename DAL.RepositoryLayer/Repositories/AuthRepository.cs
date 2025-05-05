@@ -526,45 +526,45 @@ namespace DAL.RepositoryLayer.Repositories
             var issuer = _configuration["JWTKey:ValidIssuer"];
             var audience = _configuration["JWTKey:ValidAudience"];
             var expiryMinutes = int.Parse(_configuration["JWTKey:TokenExpiryTimeInMinutes"] ?? "30");
-
             var secret = _configuration["JWTKey:Secret"] ?? throw new InvalidOperationException("JWT secret is missing.");
-            var keyBytes = Encoding.UTF8.GetBytes(secret);
+            var baseKey = Encoding.UTF8.GetBytes(secret);
 
-            // Derive HMAC key using KMAC256
-            var derivedKey = DeriveKmacKey(userId, roles, email, keyBytes);
-
-            var signingKey = new SymmetricSecurityKey(derivedKey);
-            var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha512);
+            var roleList = roles?.ToList() ?? new List<string>();
+            var derivedKey = DeriveKmacKey(userId, roleList, email, baseKey);
 
             var claims = new List<Claim>
-            {
-                   new(JwtRegisteredClaimNames.Sub, userId),
-                   new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                   new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-                   new(ClaimTypes.NameIdentifier, userId),
-                   new(ClaimTypes.Email, email),
-            };
+    {
+        new(JwtRegisteredClaimNames.Sub, userId),
+        new(JwtRegisteredClaimNames.Email, email),
+        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+        new(ClaimTypes.NameIdentifier, userId),
+        new(ClaimTypes.Email, email)
+    };
 
-            // ✅ Add all roles as separate claims
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+            // Add each role using "role" key for broad compatibility
+            claims.AddRange(roleList.Select(role => new Claim("role", role)));
 
-            var tokenDescriptor = new SecurityTokenDescriptor
+            var credentials = new SigningCredentials(new SymmetricSecurityKey(derivedKey), SecurityAlgorithms.HmacSha512);
+
+            var descriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
                 Expires = utcNow.AddMinutes(expiryMinutes),
-                SigningCredentials = signingCredentials,
                 Issuer = issuer,
-                Audience = audience
+                Audience = audience,
+                SigningCredentials = credentials
             };
 
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.CreateToken(tokenDescriptor);
+            var token = handler.CreateToken(descriptor);
             return handler.WriteToken(token);
         }
 
+
         private static byte[] DeriveKmacKey(string userId, IEnumerable<string> roles, string email, byte[] secret)
         {
-            var rolesString = string.Join(",", roles.OrderBy(r => r)); // 🔐 Always sort for consistency
+            var rolesString = string.Join(",", roles.OrderBy(r => r)); // Ensure order is consistent
             var inputData = Encoding.UTF8.GetBytes($"{userId}|{rolesString}|{email}");
 
             var kmac = new Org.BouncyCastle.Crypto.Macs.KMac(256, secret);
