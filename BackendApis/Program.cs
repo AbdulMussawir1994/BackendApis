@@ -108,18 +108,18 @@ try
     //// 4. Routing
     app.UseRouting();
 
-    //// 6. CORS Policy (before auth, especially if using tokens)
+    //// 5. CORS Policy (before auth, especially if using tokens)
     app.UseCors("CorsPolicy");
 
-    //// 5. Global Exception Handling / Custom middleware (e.g., exception handling, request context)
+    //// 6. Rate Limiting — must be before authentication if scoped per user
+    app.UseRateLimiter();
+
+    //// 7. Global Exception Handling / Custom middleware (e.g., exception handling, request context)
     app.UseEnterpriseCustomMiddleware();
 
-    //// 7. Authentication & Authorization
+    //// 8. Authentication & Authorization
     app.UseAuthentication();
     app.UseAuthorization();
-
-    //// 8. Rate Limiting — must be before authentication if scoped per user
-    app.UseRateLimiter();
 
     //// 9. Response Caching
     app.UseResponseCaching();

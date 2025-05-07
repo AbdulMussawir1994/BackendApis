@@ -22,6 +22,7 @@ namespace BackendApis.Controllers
         }
 
         [HttpPost("Enumerable-List")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> GetEmployees([FromBody] ViewEmployeeModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);

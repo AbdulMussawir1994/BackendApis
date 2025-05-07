@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Polly;
@@ -227,22 +228,32 @@ public static class DependencyInjectionSetup
         // 🚦 Rate Limiting
         services.AddRateLimiter(options =>
         {
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            // ✅ Token-based Limiter for burst traffic control
+            options.AddTokenBucketLimiter("TokenLimiter", limiterOptions =>
             {
-                // Prefer User ID (if authenticated), fallback to IP
-                var userId = context.User.Identity?.IsAuthenticated == true
-                                                    ? context.User.Identity.Name ?? $"user-{Guid.NewGuid()}"
-                                                    : context.Connection.RemoteIpAddress?.ToString() ?? $"anon-{Guid.NewGuid()}";
+                limiterOptions.TokenLimit = 20;
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 5;
+                limiterOptions.ReplenishmentPeriod = TimeSpan.FromSeconds(20);
+                limiterOptions.TokensPerPeriod = 10;
+                limiterOptions.AutoReplenishment = true;
+            });
 
-                return RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: userId,
-                    factory: key => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 20, // e.g., 20 requests
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = 2
-                    });
+            // ✅ Global Fixed Window Limiter - applies to all requests (anonymous/auth)
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+            {
+                var isAuthenticated = httpContext.User.Identity?.IsAuthenticated ?? false;
+                var identityKey = isAuthenticated
+                    ? httpContext.User.Identity?.Name ?? $"user-{Guid.NewGuid()}"
+                    : httpContext.Connection.RemoteIpAddress?.ToString() ?? $"anon-{Guid.NewGuid()}";
+
+                return RateLimitPartition.GetFixedWindowLimiter(identityKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 2,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                });
             });
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -250,9 +261,38 @@ public static class DependencyInjectionSetup
             options.OnRejected = async (context, token) =>
             {
                 context.HttpContext.Response.Headers["Retry-After"] = "60";
-                await context.HttpContext.Response.WriteAsync("Too many requests for this user. Try again in 60 seconds.", token);
+                await context.HttpContext.Response.WriteAsync("⛔ Too many requests. Please try again later.", token);
             };
         });
+
+        //services.AddRateLimiter(options =>
+        //{
+        //    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        //    {
+        //        // Prefer User ID (if authenticated), fallback to IP
+        //        var userId = context.User.Identity?.IsAuthenticated == true
+        //                                            ? context.User.Identity.Name ?? $"user-{Guid.NewGuid()}"
+        //                                            : context.Connection.RemoteIpAddress?.ToString() ?? $"anon-{Guid.NewGuid()}";
+
+        //        return RateLimitPartition.GetFixedWindowLimiter(
+        //            partitionKey: userId,
+        //            factory: key => new FixedWindowRateLimiterOptions
+        //            {
+        //                PermitLimit = 20, // e.g., 20 requests
+        //                Window = TimeSpan.FromMinutes(1),
+        //                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+        //                QueueLimit = 2
+        //            });
+        //    });
+
+        //    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        //    options.OnRejected = async (context, token) =>
+        //    {
+        //        context.HttpContext.Response.Headers["Retry-After"] = "60";
+        //        await context.HttpContext.Response.WriteAsync("Too many requests for this user. Try again in 60 seconds.", token);
+        //    };
+        //});
 
         ///[EnableRateLimiting("sliding")] --> use ActionMethod
         //services.AddRateLimiter(options =>
