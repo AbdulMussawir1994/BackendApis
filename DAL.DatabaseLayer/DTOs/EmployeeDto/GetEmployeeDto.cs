@@ -8,5 +8,5 @@ public readonly record struct GetEmployeeDto(
     decimal Salary,
     string Cv,
     string Image,
-    string AppUserId
+    string ApplicationUserId
 );

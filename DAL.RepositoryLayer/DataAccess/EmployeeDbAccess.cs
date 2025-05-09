@@ -193,7 +193,7 @@ namespace DAL.RepositoryLayer.DataAccess
                     Salary = e.Salary,
                     Image = e.ImageUrl,
                     Cv = e.CvUrl,
-                    AppUserId = e.ApplicationUserId,
+                    ApplicationUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 });
         }
@@ -217,7 +217,7 @@ namespace DAL.RepositoryLayer.DataAccess
                     Salary = e.Salary,
                     Image = e.ImageUrl,
                     Cv = e.CvUrl,
-                    AppUserId = e.ApplicationUserId,
+                    ApplicationUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
                 .Skip((model.PageNumber - 1) * model.PageSize)
@@ -250,7 +250,7 @@ namespace DAL.RepositoryLayer.DataAccess
                     Salary = e.Salary,
                     Image = e.ImageUrl,
                     Cv = e.CvUrl,
-                    AppUserId = e.ApplicationUserId,
+                    ApplicationUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
                 .ToListAsync(cancellationToken);
@@ -283,7 +283,7 @@ namespace DAL.RepositoryLayer.DataAccess
                     Salary = e.Salary,
                     Image = e.ImageUrl,
                     Cv = e.CvUrl,
-                    AppUserId = e.ApplicationUserId,
+                    ApplicationUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
                 .AsAsyncEnumerable();
@@ -353,7 +353,7 @@ namespace DAL.RepositoryLayer.DataAccess
                     Salary = e.Salary,
                     Cv = e.CvUrl,
                     Image = e.ImageUrl,
-                    AppUserId = e.ApplicationUserId,
+                    ApplicationUserId = e.ApplicationUserId,
                     UserName = e.ApplicationUser.UserName
                 })
                 .FirstOrDefaultAsync(cancellationToken);
