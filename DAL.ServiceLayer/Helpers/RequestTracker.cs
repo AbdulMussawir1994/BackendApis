@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace BackendApis.Utilities;
+namespace DAL.ServiceLayer.Helpers;
 
 public class RequestTracker
 {

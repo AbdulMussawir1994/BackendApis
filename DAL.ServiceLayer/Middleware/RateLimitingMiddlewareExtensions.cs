@@ -1,4 +1,4 @@
-﻿namespace BackendApis.Utilities;
+﻿namespace DAL.ServiceLayer.Middleware;
 
 //public static class RateLimitingMiddlewareExtensions
 //{

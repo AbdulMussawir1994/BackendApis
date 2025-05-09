@@ -1,4 +1,4 @@
-﻿namespace BackendApis.Utilities;
+﻿namespace DAL.ServiceLayer.Extensions;
 
 public class RateLimitOptions
 {

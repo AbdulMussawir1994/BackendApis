@@ -225,8 +225,8 @@ public static class DependencyInjectionSetup
         //      options.ResiliencePipelineName = "GlobalHttpPolicy"; // 👈 This now works
         //  });
 
-        //  services.Configure<RateLimitOptions>(configuration.GetSection("RateLimiting"));
-        //  services.AddSingleton<IRateLimiterService, RateLimiterService>();
+        // services.Configure<RateLimitOptions>(configuration.GetSection("RateLimiting"));
+        // services.AddSingleton<IRateLimiterService, RateLimiterService>();
 
         // 🚦 Rate Limiting
         services.AddRateLimiter(options =>
