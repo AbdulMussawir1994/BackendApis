@@ -6,6 +6,7 @@ using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace BackendApis.Controllers
@@ -14,6 +15,7 @@ namespace BackendApis.Controllers
     //[Authorize]
     //   [AllowAnonymous]
     [ApiVersion("2.0")]
+    [EnableRateLimiting("TokenLimiter")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class UserController : WebBaseController
     {

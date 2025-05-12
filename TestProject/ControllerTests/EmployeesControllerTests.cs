@@ -45,6 +45,95 @@ public class EmployeesControllerTests
     }
 
     [Fact]
+    public async Task EmployeesListReturn_Should_Be_Null()
+    {
+        // Arrange
+        var response = new MobileResponse<IEnumerable<GetEmployeeDto>>(_configHandler, "employee")
+            .SetError("ERR-404", "No employees found.", Enumerable.Empty<GetEmployeeDto>());
+
+        _repositoryMock.Setup(x => x.GetEmployeesList(It.IsAny<ViewEmployeeModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+
+        var view = new ViewEmployeeModel { PageNumber = 1, PageSize = 10 };
+
+        // Act
+        var result = await _controller.GetEmployees(view, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = result as OkObjectResult;
+        var value = okResult?.Value as MobileResponse<IEnumerable<GetEmployeeDto>>;
+
+        value.Should().NotBeNull();
+        value!.Status.IsSuccess.Should().BeFalse();
+        value.Status.StatusMessage.Should().Be("No employees found.");
+        value.Content.Should().BeEmpty(); // ✅ Ensures empty list
+    }
+
+    [Fact]
+    public async Task GetAllEmployees_ShouldReturnGroupedEmployees_WithSuccess()
+    {
+        // Arrange
+        var groupedData = new Dictionary<string, List<GetEmployeeDto>>
+    {
+        { "IT", new List<GetEmployeeDto> { new GetEmployeeDto { EmployeeName = "John" } } },
+        { "HR", new List<GetEmployeeDto> { new GetEmployeeDto { EmployeeName = "Jane" } } }
+    };
+
+        var expectedResponse = new MobileResponse<Dictionary<string, List<GetEmployeeDto>>>(_configHandler, "Employee")
+            .SetSuccess("SUCCESS-200", "Employee list fetched successfully.", groupedData);
+
+        _repositoryMock
+             .Setup(x => x.GetAllEmployeesAsync())
+            .ReturnsAsync(expectedResponse);
+
+        // Act
+        var result = await _controller.GetAllEmployees();
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = result as OkObjectResult;
+        var value = okResult?.Value as MobileResponse<Dictionary<string, List<GetEmployeeDto>>>;
+
+        value.Should().NotBeNull();
+        value!.Status.IsSuccess.Should().BeTrue();
+        value.Status.Code.Should().Be("SUCCESS-200");
+        value.Status.StatusMessage.Should().Be("Employee list fetched successfully.");
+        value.Content.Should().ContainKey("IT");
+        value.Content.Should().ContainKey("HR");
+        value.Content["IT"].First().EmployeeName.Should().Be("John");
+    }
+
+    [Fact]
+    public async Task GetAllEmployees_ShouldReturnError_WhenNoEmployeesExist()
+    {
+        // Arrange
+        var expectedResponse = new MobileResponse<Dictionary<string, List<GetEmployeeDto>>>(_configHandler, "Employee")
+            .SetError("ERR-404", "No employees found.", new Dictionary<string, List<GetEmployeeDto>>());
+
+        _repositoryMock
+             .Setup(x => x.GetAllEmployeesAsync())
+            .ReturnsAsync(expectedResponse);
+
+        // Act
+        var result = await _controller.GetAllEmployees();
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+
+        var okResult = result as OkObjectResult;
+        var value = okResult?.Value as MobileResponse<Dictionary<string, List<GetEmployeeDto>>>;
+
+        value.Should().NotBeNull();
+        value!.Status.IsSuccess.Should().BeFalse();
+        value.Status.Code.Should().Be("ERR-404");
+        value.Status.StatusMessage.Should().Be("No employees found.");
+        value.Content.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CreateEmployee_ShouldReturnOk()
     {
         var response = new MobileResponse<bool>(_configHandler, "employee")

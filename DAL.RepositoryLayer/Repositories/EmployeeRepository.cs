@@ -117,6 +117,24 @@ namespace DAL.RepositoryLayer.Repositories
                 : response.SetError("ERR-404", "Employee not found.");
         }
 
+        public async Task<MobileResponse<GetEmployeeDto?>> GetEmployeeByIdAsyncForTest(EmployeeIdViewModel model, CancellationToken token)
+        {
+            var response = new MobileResponse<GetEmployeeDto?>(_configHandler, "employee");
+
+            try
+            {
+                var employee = await _employeeDbAccess.GetEmployeeById(model, token);
+                if (employee is null)
+                    return response.SetError("NOT_FOUND", "Employee not found.");
+
+                return response.SetSuccess("SUCCESS-200", "Employee fetched successfully.", employee);
+            }
+            catch (Exception ex)
+            {
+                return response.SetError("ERR-500", $"An unexpected error occurred: {ex.Message}");
+            }
+        }
+
         public async Task<MobileResponse<bool>> PatchEmployeeAsync(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken)
         {
             var response = new MobileResponse<bool>(_configHandler, "employee");

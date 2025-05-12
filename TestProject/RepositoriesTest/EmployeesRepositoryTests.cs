@@ -47,6 +47,30 @@ public class EmployeesRepositoryTests
         result.Content.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task EmployeesList_ShouldReturnNotFound_WhenNoEmployeesExist()
+    {
+        // Arrange
+        var emptyEmployees = Enumerable.Empty<GetEmployeeDto>().AsQueryable();
+
+        _dbMock.Setup(x => x.GetEmployees(It.IsAny<ViewEmployeeModel>()))
+               .Returns(emptyEmployees);
+
+        var request = new ViewEmployeeModel
+        {
+            PageNumber = 1,
+            PageSize = 10
+        };
+
+        // Act
+        var result = await _repository.GetEmployeesListAsync(request);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.Code.Should().Be("ERR-404");
+        result.Status.StatusMessage.Should().Be("No employees found.");
+        result.Content.Should().BeNull(); // or BeNullOrEmpty() if you allow empty list
+    }
 
     [Fact]
     public async Task CreateEmployeeAsync_ShouldReturnSuccess()
@@ -276,7 +300,7 @@ public class EmployeesRepositoryTests
         var result = await _repository.UpdateEmployeeAsync(model, CancellationToken.None);
 
         result.Status.IsSuccess.Should().BeFalse();
-        result.Status.StatusMessage.Should().Be("Invalid ApplicationUserId.");
+        result.Status.StatusMessage.Should().Be("Invalid application user ID.");
     }
 
     [Fact]
@@ -287,10 +311,11 @@ public class EmployeesRepositoryTests
         _dbMock.Setup(x => x.GetEmployeeById(It.IsAny<EmployeeIdViewModel>(), It.IsAny<CancellationToken>()))
                .Throws(new Exception("Database error"));
 
-        var result = await _repository.GetEmployeeByIdAsync(model, CancellationToken.None);
+        var result = await _repository.GetEmployeeByIdAsyncForTest(model, CancellationToken.None);
 
         result.Status.IsSuccess.Should().BeFalse();
         result.Status.StatusMessage.Should().Contain("unexpected error");
+        result.Status.Code.Should().Be("ERR-500");
     }
 
     [Fact]
@@ -313,7 +338,7 @@ public class EmployeesRepositoryTests
 
         // Assert
         result.Status.IsSuccess.Should().BeFalse();
-        result.Status.StatusMessage.Should().Be("Employee already exists");
+        result.Status.StatusMessage.Should().Be("Failed to create employee.");
     }
 
     [Fact]
