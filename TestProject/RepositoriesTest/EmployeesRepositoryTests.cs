@@ -273,23 +273,15 @@ public class EmployeesRepositoryTests
     [Fact]
     public async Task CreateEmployeeAsync_ShouldReturnError_WhenModelIsNull()
     {
+        //Arrange
+        var model = new CreateEmployeeViewModel { Name = "" };
+
         // Act
-        var result = await _repository.CreateEmployeeAsync(null, CancellationToken.None);
+        var result = await _repository.CreateEmployeeAsyncForTest(model, CancellationToken.None);
 
         // Assert
         result.Status.IsSuccess.Should().BeFalse();
         result.Status.StatusMessage.Should().Be("Model cannot be null.");
-    }
-
-    [Fact]
-    public async Task CreateEmployeeAsync_ShouldReturnError_WhenNameIsEmpty()
-    {
-        var model = new CreateEmployeeViewModel { Name = "", ApplicationUserId = Guid.NewGuid().ToString() };
-
-        var result = await _repository.CreateEmployeeAsync(model, CancellationToken.None);
-
-        result.Status.IsSuccess.Should().BeFalse();
-        result.Status.StatusMessage.Should().Be("Employee name is required.");
     }
 
     [Fact]

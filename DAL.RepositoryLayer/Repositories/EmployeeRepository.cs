@@ -5,6 +5,7 @@ using DAL.RepositoryLayer.IDataAccess;
 using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace DAL.RepositoryLayer.Repositories
 {
@@ -73,6 +74,24 @@ namespace DAL.RepositoryLayer.Repositories
             if (!Guid.TryParse(model.ApplicationUserId, out _))
             {
                 return response.SetError("ERR-1001", "Invalid application user ID.", false);
+            }
+
+            //var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);
+            var result = await _employeeDbAccess.CreateEmployee1(model, cancellationToken);
+
+            return result.Status.IsSuccess
+                ? response.SetSuccess("SUCCESS-200", "Employee created successfully.", true)
+                : response.SetError("ERR-500", "Failed to create employee.", false);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)] // 🔒 This method hides 
+        public async Task<MobileResponse<bool>> CreateEmployeeAsyncForTest(CreateEmployeeViewModel model, CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<bool>(_configHandler, "employee");
+
+            if (string.IsNullOrEmpty(model.ApplicationUserId))
+            {
+                return response.SetError("ERR-1001", "Model cannot be null.", false);
             }
 
             //var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);

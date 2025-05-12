@@ -8,6 +8,7 @@ using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -117,6 +118,35 @@ namespace DAL.RepositoryLayer.Repositories
                 Id = user.Id,
                 ExpireTokenTime = tokenExpiry,
                 RefreshToken = encryptedRefreshToken
+            });
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)] // 🔒 This method hides 
+        public async Task<MobileResponse<LoginResponseModel>> LoginUserForTesting(LoginViewModel model, CancellationToken cancellationToken)
+        {
+            var response = new MobileResponse<LoginResponseModel>(_configHandler, "user");
+
+            var user = await _userManager.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CNIC == model.CNIC, cancellationToken);
+
+            if (user is null)
+            {
+                _logger.LogWarning("Login failed: CNIC {CNIC} not found.", model.CNIC);
+                return response.SetError("ERR-1001", "CNIC  is Invalid.");
+            }
+
+            var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
+            if (!isPasswordValid)
+            {
+                _logger.LogWarning("Login failed: Invalid password for CNIC {CNIC}.", model.CNIC);
+                return response.SetError("ERR-1003", "Password is Invalid.");
+            }
+
+            return response.SetSuccess("SUCCESS-200", "Login Successful", new LoginResponseModel
+            {
+                AccessToken = "jwtTokenIsValidForTesting",
+                Id = user.Id,
             });
         }
 

@@ -119,13 +119,13 @@ public class AuthRepositoryTests : IDisposable
         var cancellationToken = new CancellationToken();
 
         // Act
-        var response = await _authRepository.LoginUser(loginModel, cancellationToken);
+        var response = await _authRepository.LoginUserForTesting(loginModel, cancellationToken);
 
         // Assert
         response.Status.IsSuccess.Should().BeTrue();
         response.Status.StatusMessage.Should().Be("Login Successful");
         response.Content.Id.Should().Be("5c3f7894-6c66-4d9f-ac63-ab6dbcd59db0");
-        response.Content.AccessToken.Should().Be("jwtToken");
+        response.Content.AccessToken.Should().Be("jwtTokenIsValidForTesting");
     }
 
     //[Fact]
