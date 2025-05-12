@@ -246,5 +246,87 @@ public class EmployeesRepositoryTests
         result.Status.StatusMessage.Should().Be("Employee not found.");
     }
 
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldReturnError_WhenModelIsNull()
+    {
+        // Act
+        var result = await _repository.CreateEmployeeAsync(null, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Model cannot be null.");
+    }
+
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldReturnError_WhenNameIsEmpty()
+    {
+        var model = new CreateEmployeeViewModel { Name = "", ApplicationUserId = Guid.NewGuid().ToString() };
+
+        var result = await _repository.CreateEmployeeAsync(model, CancellationToken.None);
+
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Employee name is required.");
+    }
+
+    [Fact]
+    public async Task UpdateEmployeeAsync_ShouldReturnError_WhenApplicationUserIdIsInvalid()
+    {
+        var model = new UpdateEmployeeViewModel { Name = "Name", ApplicationUserId = "bad-guid" };
+
+        var result = await _repository.UpdateEmployeeAsync(model, CancellationToken.None);
+
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Invalid ApplicationUserId.");
+    }
+
+    [Fact]
+    public async Task GetEmployeeByIdAsync_ShouldHandleException_Gracefully()
+    {
+        var model = new EmployeeIdViewModel { Id = Guid.NewGuid().ToString() };
+
+        _dbMock.Setup(x => x.GetEmployeeById(It.IsAny<EmployeeIdViewModel>(), It.IsAny<CancellationToken>()))
+               .Throws(new Exception("Database error"));
+
+        var result = await _repository.GetEmployeeByIdAsync(model, CancellationToken.None);
+
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Contain("unexpected error");
+    }
+
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldReturnError_WhenEmployeeAlreadyExists()
+    {
+        // Arrange
+        var model = new CreateEmployeeViewModel
+        {
+            Name = "John",
+            ApplicationUserId = Guid.NewGuid().ToString()
+        };
+
+        var response = new MobileResponse<string>(_configHandler, "employee");
+
+        _dbMock.Setup(x => x.CreateEmployee1(It.IsAny<CreateEmployeeViewModel>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(response);
+
+        // Act
+        var result = await _repository.CreateEmployeeAsync(model, CancellationToken.None);
+
+        // Assert
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Employee already exists");
+    }
+
+    [Fact]
+    public async Task GetEmployeesListAsync_ShouldHandleEmptyPageGracefully()
+    {
+        var model = new ViewEmployeeModel { PageNumber = 999, PageSize = 10 };
+        _dbMock.Setup(x => x.GetEmployees(model)).Returns(Enumerable.Empty<GetEmployeeDto>().AsQueryable());
+
+        var result = await _repository.GetEmployeesListAsync(model);
+
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("No employees found.");
+    }
+
 
 }
