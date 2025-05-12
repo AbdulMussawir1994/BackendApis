@@ -57,7 +57,7 @@ public class EnterpriseCustomMiddleware
                 }
 
                 var (principal, errorMessage) = ValidateTokenAndGetPrincipal(token);
-                if (principal == null)
+                if (principal is null)
                 {
                     await CustomAuthorizationMiddleware.WriteCustomResponse(context, StatusCodes.Status401Unauthorized, "ERR-401", errorMessage);
                     return;
@@ -238,7 +238,6 @@ public class EnterpriseCustomMiddleware
                 ClockSkew = TimeSpan.FromMinutes(1),
                 ValidIssuer = issuer,
                 ValidAudience = audience,
-
                 IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
                 {
                     var jwtToken = tokenHandler.ReadJwtToken(token);
@@ -311,6 +310,74 @@ public class EnterpriseCustomMiddleware
         }
         catch
         {
+            return false;
+        }
+    }
+
+    private async Task EncryptRequest(HttpContext context, string key)
+    {
+        try
+        {
+            // Read request body into string
+            context.Request.EnableBuffering();
+
+            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
+            var body = await reader.ReadToEndAsync();
+
+            // Reset request body stream position
+            context.Request.Body.Position = 0;
+
+            if (string.IsNullOrWhiteSpace(body))
+                return;
+
+            // Encrypt the request content using AES-GCM (or any algorithm you use)
+            var encrypted = new AesGcmEncryption(_config).Encrypt(body, key);
+
+            // Replace request body with encrypted content
+            var encryptedBytes = Encoding.UTF8.GetBytes(encrypted);
+            context.Request.Body = new MemoryStream(encryptedBytes) { Position = 0 };
+
+            // Optional: Log or trace encrypted data for debugging
+            // _logger.LogInformation("Request encrypted successfully.");
+        }
+        catch (Exception ex)
+        {
+            // Optional: Log error
+            //_logger.LogError(ex, "Failed to encrypt request.");
+            throw new InvalidOperationException("Failed to encrypt request.", ex);
+        }
+    }
+
+    private async Task<bool> DecryptRequest1(HttpRequest request, string key)
+    {
+        try
+        {
+            // Ensure the body can be read multiple times
+            request.EnableBuffering();
+
+            // Read stream directly into memory
+            using var reader = new StreamReader(request.Body, Encoding.UTF8, leaveOpen: true);
+            var encryptedPayload = await reader.ReadToEndAsync();
+
+            if (string.IsNullOrWhiteSpace(encryptedPayload))
+                return false;
+
+            // Reset stream for replacement
+            request.Body.Position = 0;
+
+            // Decrypt
+            var decrypted = new AesGcmEncryption(_config).Decrypt(encryptedPayload, key);
+
+            // Replace request body with decrypted data
+            var decryptedBytes = Encoding.UTF8.GetBytes(decrypted);
+            request.Body = new MemoryStream(decryptedBytes) { Position = 0 };
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Optional: Log decryption error
+            //_logger.LogError(ex, "Failed to decrypt request body.");
             return false;
         }
     }
