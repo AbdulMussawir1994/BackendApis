@@ -128,31 +128,61 @@ public class EnterpriseCustomMiddleware
     private async Task<bool> TryDecryptRequest(HttpContext context)
     {
         var isEncrypted = _config.GetValue("EncryptionSettings:Encryption", false);
-        var nonEncryptedRoutes = _config["NonEncryptedRoute:List"]?.ToLower().Split(',') ?? [];
-        var routeAction = context.GetRouteData().Values["action"]?.ToString()?.ToLower();
+        var route = context.GetRouteData().Values["action"]?.ToString()?.ToLower();
+        var skipDecrypt = _config["NonEncryptedRoute:List"]?.ToLower().Split(',')?.Contains(route) == true;
 
         var key = context.Request.Headers["Key"].ToString();
-        if (!string.IsNullOrEmpty(key)) key = new RsaEncryption(_config).Decrypt(key);
+        if (!string.IsNullOrEmpty(key))
+            key = new RsaEncryption(_config).Decrypt(key);
 
-        if (!isEncrypted || string.IsNullOrEmpty(key) ||
-            nonEncryptedRoutes.Contains(routeAction) || context.Request.Method == HttpMethods.Get)
+        if (!isEncrypted || string.IsNullOrEmpty(key) || skipDecrypt || context.Request.Method == HttpMethods.Get)
             return true;
 
-        return await DecryptRequest(context.Request, key);
+        try
+        {
+            context.Request.EnableBuffering();
+            using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
+            var encrypted = await reader.ReadToEndAsync();
+            context.Request.Body.Position = 0;
+
+            var decrypted = new AesGcmEncryption(_config).Decrypt(encrypted, key);
+            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(decrypted)) { Position = 0 };
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    private string ApplyEncryptionToRequest(HttpContext context, string requestLog)
+    private async Task<bool> DecryptRequest(HttpRequest request, string key)
     {
-        var isPostmanAllowed = _config.GetValue("EncryptionSettings:IsPostmanAllowed", true);
-        return isPostmanAllowed || context.Request.Method == HttpMethods.Get
-            ? new LogsParamEncryption().CredentialsEncryptionRequest(requestLog)
-            : requestLog;
+        try
+        {
+            using var memoryStream = new MemoryStream();
+            await request.Body.CopyToAsync(memoryStream);
+            var decrypted = new AesGcmEncryption(_config).Decrypt(Encoding.UTF8.GetString(memoryStream.ToArray()), key);
+            request.Body = new MemoryStream(Encoding.UTF8.GetBytes(decrypted)) { Position = 0 };
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private string ApplyEncryptionToRequest(HttpContext context, string body)
+    {
+        if (_config.GetValue("EncryptionSettings:IsPostmanAllowed", true) || context.Request.Method == HttpMethods.Get)
+            return new LogsParamEncryption().CredentialsEncryptionRequest(body);
+
+        return body;
     }
 
     private string? DecryptToken(HttpContext context)
     {
-        if (!context.Request.Headers.TryGetValue("Authorization", out var header) ||
-            !header.ToString().StartsWith("Bearer ")) return null;
+        if (!context.Request.Headers.TryGetValue("Authorization", out var header) || !header.ToString().StartsWith("Bearer "))
+            return null;
 
         var encryptedToken = header.ToString()["Bearer ".Length..].Trim();
         return new AesGcmEncryption(_config).Decrypt(encryptedToken);
@@ -298,22 +328,7 @@ public class EnterpriseCustomMiddleware
         return output;
     }
 
-    private async Task<bool> DecryptRequest(HttpRequest request, string key)
-    {
-        try
-        {
-            using var memoryStream = new MemoryStream();
-            await request.Body.CopyToAsync(memoryStream);
-            var decrypted = new AesGcmEncryption(_config).Decrypt(Encoding.UTF8.GetString(memoryStream.ToArray()), key);
-            request.Body = new MemoryStream(Encoding.UTF8.GetBytes(decrypted)) { Position = 0 };
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
+    //This method is used for Server to Server side communication.
     private async Task EncryptRequest(HttpContext context, string key)
     {
         try
@@ -348,6 +363,7 @@ public class EnterpriseCustomMiddleware
         }
     }
 
+    //This method is used for Server to Server side communication.
     private async Task<bool> DecryptRequest1(HttpRequest request, string key)
     {
         try
@@ -443,9 +459,9 @@ public class EnterpriseCustomMiddleware
         }
     }
 
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
-        var code = exception switch
+        var code = ex switch
         {
             ArgumentNullException => HttpStatusCode.BadRequest,
             UnauthorizedAccessException => HttpStatusCode.Unauthorized,
@@ -454,27 +470,21 @@ public class EnterpriseCustomMiddleware
             _ => HttpStatusCode.InternalServerError
         };
 
-        var errorId = Guid.NewGuid().ToString();
-        var errorMessage = exception.InnerException?.Message ?? exception.Message;
+        var response = new MobileResponse<string>(_configHandler, "Application")
+            .SetError("ERR-500", ex.InnerException?.Message ?? ex.Message);
 
-        var errorResponse = new MobileResponse<string>(_configHandler, "Application");
-        errorResponse.SetError("ERR-1003", errorMessage);
-
-        var filteredResponse = new
+        var filtered = new
         {
-            errorResponse.LogId,
-            errorResponse.Content,
-            errorResponse.RequestDateTime,
-            errorResponse.Status
+            response.LogId,
+            response.Content,
+            response.RequestDateTime,
+            response.Status
         };
-
-        var errorJson = JsonConvert.SerializeObject(filteredResponse);
 
         context.Response.Clear();
         context.Response.StatusCode = (int)code;
         context.Response.ContentType = "application/json";
-
-        await context.Response.WriteAsync(errorJson, Encoding.UTF8);
+        await context.Response.WriteAsync(JsonConvert.SerializeObject(filtered), Encoding.UTF8);
     }
 }
 

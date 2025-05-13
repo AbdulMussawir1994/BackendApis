@@ -38,6 +38,37 @@ namespace BackendApis.Controllers
             return !validation.Status.IsSuccess ? Ok(validation) : Ok(await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken));
         }
 
+        [HttpPost("LongTermTask")]
+        public async Task<IActionResult> LongTermTask([FromBody] ViewEmployeeModel model, CancellationToken cancellationToken)
+        {
+            var validation = this.ModelValidator(model);
+            if (!validation.Status.IsSuccess)
+                return Ok(validation);
+
+            try
+            {
+                // ✅ Intentional delay (e.g. simulating long-running task)
+                await Task.Delay(TimeSpan.FromHours(1), cancellationToken); // You can set this to 50000ms or more
+
+                // ⏳ Actual fetch after delay
+                var result = await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken);
+                return Ok(result);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499, new
+                {
+                    logId = Guid.NewGuid().ToString(),
+                    status = new
+                    {
+                        isSuccess = false,
+                        code = "ERR-CANCELLED",
+                        statusMessage = "The request was cancelled by the client."
+                    }
+                });
+            }
+        }
+
         [HttpGet("IEnumerable-List2")]
         public async Task<ActionResult> GetEmployeesPagination2([FromQuery] ViewEmployeeModel model, CancellationToken cancellationToken)
         {
