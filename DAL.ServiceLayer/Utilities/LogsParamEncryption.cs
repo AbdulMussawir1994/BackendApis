@@ -17,7 +17,7 @@ public class LogsParamEncryption
                 {
                     var propertiesToEncrypt = new string[]
                     {
-                        "password", "currentpassword", "newpassword", "apploginpin", "apppin",
+                        "password", "currentpassword", "confirmpassword","newpassword", "apploginpin", "apppin",
                         "otpcode", "otp", "ciphertext", "cardpin", "newpin", "confirmapppin",
                         "reenterpassword", "cipher", "confirmcardpin", "currentpin", "confirmpin",
                         "cardnumber", "pin", "newcardpin", "newcardpinconfrim", "mpin", "confirmmpin",
@@ -80,7 +80,7 @@ public class LogsParamEncryption
             {
                 var sensitiveKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "password", "currentpassword", "newpassword", "apploginpin", "apppin",
+                "password", "currentpassword", "confirmpassword", "newpassword", "apploginpin", "apppin",
                 "otpcode", "otp", "ciphertext", "cardpin", "newpin", "confirmapppin",
                 "reenterpassword", "cipher", "confirmcardpin", "currentpin", "confirmpin",
                 "cardnumber", "pin", "newcardpin", "newcardpinconfrim", "mpin", "confirmmpin",

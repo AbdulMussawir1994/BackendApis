@@ -7,11 +7,6 @@ using DAL.ServiceLayer.Utilities;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NunitTesting.RepositoryTests;
 
@@ -43,6 +38,7 @@ public class EmployeesRepositoryTests
 
         result.Status.IsSuccess.Should().BeTrue();
         result.Content.Should().NotBeNull();
+        result.Status.StatusMessage.Should().Be("Employee list fetched successfully.");
     }
 
     [Test]
