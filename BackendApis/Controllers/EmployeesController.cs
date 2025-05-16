@@ -45,28 +45,12 @@ namespace BackendApis.Controllers
             if (!validation.Status.IsSuccess)
                 return Ok(validation);
 
-            try
-            {
-                // ✅ Intentional delay (e.g. simulating long-running task)
-                await Task.Delay(TimeSpan.FromHours(1), cancellationToken); // You can set this to 50000ms or more
+            // ✅ Intentional delay (e.g. simulating long-running task)
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken); // You can set this to 50000ms or more
 
-                // ⏳ Actual fetch after delay
-                var result = await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken);
-                return Ok(result);
-            }
-            catch (OperationCanceledException)
-            {
-                return StatusCode(499, new
-                {
-                    logId = Guid.NewGuid().ToString(),
-                    status = new
-                    {
-                        isSuccess = false,
-                        code = "ERR-CANCELLED",
-                        statusMessage = "The request was cancelled by the client."
-                    }
-                });
-            }
+            // ⏳ Actual fetch after delay
+            var result = await _employeeLayer.GetEmployeesPaginationAsync(model, cancellationToken);
+            return Ok(result);
         }
 
         [HttpGet("IEnumerable-List2")]

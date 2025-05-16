@@ -28,9 +28,9 @@ namespace NunitTesting.ControllerTests
         [Test]
         public async Task GetEmployees_WithValidInput_ReturnsOkResultWithEmptyList()
         {
-            // Arrange
+            //// Arrange
             var response = new MobileResponse<IEnumerable<GetEmployeeDto>>(_configHandler, "employee")
-                .SetSuccess("SUCCESS-200", "Fetched", new List<GetEmployeeDto>());
+                .SetSuccess("SUCCESS-200", "Employee list fetched successfully.", new List<GetEmployeeDto>());
 
             _repositoryMock
                 .Setup(x => x.GetEmployeesList(It.IsAny<ViewEmployeeModel>(), It.IsAny<CancellationToken>()))
@@ -50,6 +50,7 @@ namespace NunitTesting.ControllerTests
             Assert.That(value, Is.Not.Null);
             Assert.That(value.Status.IsSuccess, Is.True);
             Assert.That(value.Content, Is.Empty);
+            Assert.That(value.Status.StatusMessage, Is.EqualTo("Employee list fetched successfully."));
         }
 
         [Test]
