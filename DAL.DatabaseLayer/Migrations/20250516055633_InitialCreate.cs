@@ -62,6 +62,37 @@ namespace DAL.DatabaseLayer.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MasterNotifications",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Body = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Link = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ImageBase64 = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NotificationType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AppNavigation = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ButtonText = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PlatformType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DisplayCount = table.Column<int>(type: "int", nullable: true),
+                    StartTime = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    EndTime = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TitleAr = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ButtonTextAr = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    BodyAr = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MasterNotifications", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AspNetRoleClaims",
                 columns: table => new
                 {
@@ -175,8 +206,8 @@ namespace DAL.DatabaseLayer.Migrations
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Age = table.Column<int>(type: "int", nullable: false),
                     Salary = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    CvUrl = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
-                    ImageUrl = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    CvUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     CreatedBy = table.Column<long>(type: "bigint", nullable: true),
                     DateCreated = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -193,6 +224,37 @@ namespace DAL.DatabaseLayer.Migrations
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserNotifications",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    NotificationId = table.Column<long>(type: "bigint", nullable: true),
+                    UserId = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
+                    NotificationTime = table.Column<DateTime>(type: "datetime", nullable: true),
+                    IsRead = table.Column<bool>(type: "bit", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: true),
+                    DeviceId = table.Column<string>(type: "varchar(200)", unicode: false, maxLength: 200, nullable: false),
+                    DeviceToken = table.Column<string>(type: "varchar(200)", unicode: false, maxLength: 200, nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime", nullable: true),
+                    CreatedBy = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime", nullable: true),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
+                    DeletedDate = table.Column<DateTime>(type: "datetime", nullable: true),
+                    DeletedBy = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
+                    ReadCount = table.Column<int>(type: "int", nullable: true, defaultValueSql: "((0))")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserNotifications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserNotifications_Master.Notifications",
+                        column: x => x.NotificationId,
+                        principalTable: "MasterNotifications",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateIndex(
@@ -258,6 +320,11 @@ namespace DAL.DatabaseLayer.Migrations
                 name: "IX_Employees_ApplicationUserId",
                 table: "Employees",
                 column: "ApplicationUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_NotificationId",
+                table: "UserNotifications",
+                column: "NotificationId");
         }
 
         /// <inheritdoc />
@@ -282,10 +349,16 @@ namespace DAL.DatabaseLayer.Migrations
                 name: "Employees");
 
             migrationBuilder.DropTable(
+                name: "UserNotifications");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "MasterNotifications");
         }
     }
 }

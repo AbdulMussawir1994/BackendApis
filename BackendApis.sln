@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EncryptionsDecryptions", "E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestProject", "TestProject\TestProject.csproj", "{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NunitTesting", "NunitTesting\NunitTesting.csproj", "{B9AC4B72-7940-4F03-BCF7-DDCBD795761C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,8 +53,15 @@ Global
 		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{330DF2CD-0AC1-462F-9A40-CF43FCC28B31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9AC4B72-7940-4F03-BCF7-DDCBD795761C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9AC4B72-7940-4F03-BCF7-DDCBD795761C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9AC4B72-7940-4F03-BCF7-DDCBD795761C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9AC4B72-7940-4F03-BCF7-DDCBD795761C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8508E01B-049E-4E89-95BB-881A0B9C9991}
 	EndGlobalSection
 EndGlobal
