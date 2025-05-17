@@ -24,3 +24,9 @@ x-api-version: 2.0
   "pageSize": 10,
   "pageNumber": 1
 }
+
+###Fire JOB
+POST {{BackendApis_HostAddress}}/api/v2/Jobs/fire-and-forget
+Content-Type: application/json
+Accept: application/json
+x-api-version: 2.0

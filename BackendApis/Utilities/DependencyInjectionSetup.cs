@@ -133,6 +133,7 @@ public static class DependencyInjectionSetup
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IDataBaseAccess, DataBaseAccess>();
         services.AddScoped<IJobService, JobService>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         services.AddScoped<IRoleUserService, RoleUserService>();
 
@@ -140,6 +141,7 @@ public static class DependencyInjectionSetup
         services.AddScoped<IEmployeeDbAccess, EmployeeDbAccess>();
         services.AddScoped<IFilesServiceRepository, FilesServiceRepository>();
         services.AddScoped<IFileUtility, FileUtility>();
+        services.AddScoped<INotificationDbAccess, NotificationDbAccess>();
 
         services.AddScoped<CustomUserManager>();
 

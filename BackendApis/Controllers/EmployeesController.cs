@@ -15,6 +15,8 @@ namespace BackendApis.Controllers
     public class EmployeesController : WebBaseController
     {
         private readonly IEmployeeRepository _employeeLayer;
+        //var record = Task.Run(() => this.GetRecordById(saveRequest.RecordId)).GetAwaiter().GetResult();
+        // Task.Run(async () => await this.GetRecordById(saveRequest.RecordId)).Result;
 
         public EmployeesController(ConfigHandler configHandler, IEmployeeRepository employeeRepository) : base(configHandler)
         {

@@ -29,7 +29,30 @@ public class JobsController : ControllerBase
         _logger = logger;
     }
 
+    [HttpPost("schedule-notifications")]
+    public IActionResult ScheduleNotificationJob()
+    {
+        // Schedule to run every minute
+        _recurringJobManager.AddOrUpdate(
+            "minutely-notification-job",
+            () => _jobService.CreateNotificationsAutomatically(),
+            Cron.Minutely);
+
+        _logger.LogInformation("Scheduled notification job to run every minute");
+        return Ok("Notification job scheduled to run every minute");
+    }
+
+    [HttpDelete("stop-notifications")]
+    public IActionResult StopNotificationJob()
+    {
+        _recurringJobManager.RemoveIfExists("minutely-notification-job");
+        _logger.LogInformation("Stopped minutely notification job");
+        return Ok("Stopped minutely notification job");
+    }
+
     [HttpPost("fire-and-forget")]
+    //Schedules a background job to execute immediately.
+    //To offload tasks that don't need to block the main thread, such as sending emails or logging.
     public IActionResult FireAndForgetJob()
     {
         _backgroundJobClient.Enqueue(() => _jobService.ProcessJobAsync("Fire-and-forget job executed"));
@@ -38,6 +61,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("delayed")]
+    //Schedules a job to run after a specified delay (1 minute in this case).
+    //For tasks that should occur after a certain period, like sending follow-up emails.
     public IActionResult DelayedJob()
     {
         _backgroundJobClient.Schedule(() => _jobService.ProcessJobAsync("Delayed job executed"), TimeSpan.FromMinutes(1));
@@ -46,6 +71,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("recurring")]
+    //Schedules a job to run daily at a specified time
+    //For tasks that need to run on a regular schedule, such as daily reports
     public IActionResult RecurringJob()
     {
         _recurringJobManager.AddOrUpdate(
@@ -57,6 +84,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("recurring/{jobId}")]
+    //Removes a scheduled recurring job by its identifier.
+    //To stop a recurring task when it's no longer needed.
     public IActionResult DeleteRecurringJob(string jobId)
     {
         _recurringJobManager.RemoveIfExists(jobId);
@@ -65,6 +94,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("continuation")]
+    //Schedules a job to run after the completion of another job
+    //To ensure tasks are executed in a specific sequence, where one depends on the completion of another.
     public IActionResult ContinuationJob()
     {
         var parentJobId = _backgroundJobClient.Enqueue(() => _jobService.ProcessJobAsync("Parent job executed"));
@@ -75,6 +106,8 @@ public class JobsController : ControllerBase
 
     // 🆕 Monitor failed jobs
     [HttpGet("stats")]
+    //Retrieves statistics about the background jobs, such as counts of enqueued, processing, succeeded, failed, and other job states.
+    //To monitor the health and performance of background job processing.
     public IActionResult GetJobStats()
     {
         var stats = JobStorage.Current.GetMonitoringApi().GetStatistics();

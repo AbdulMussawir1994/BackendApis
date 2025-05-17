@@ -68,6 +68,20 @@ public class EmployeesRepositoryTests
     }
 
     [Test]
+    public async Task CreateEmployee_ShouldReturnFailed()
+    {
+        var model = new CreateEmployeeViewModel { Name = "John", ApplicationUserId = Guid.NewGuid().ToString() };
+
+        _dbMock.Setup(x => x.CreateEmployee1(model, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MobileResponse<string>(_configHandler, "employee").SetError("ERR-500", "Failed to create employee.", null));
+
+        var result = await _repository.CreateEmployeeAsync(model, CancellationToken.None);
+
+        result.Status.IsSuccess.Should().BeFalse();
+        result.Status.StatusMessage.Should().Be("Failed to create employee.");
+    }
+
+    [Test]
     public async Task UpdateEmployeeAsync_ShouldReturnSuccess()
     {
         var model = new UpdateEmployeeViewModel { Name = "Update", ApplicationUserId = Guid.NewGuid().ToString() };

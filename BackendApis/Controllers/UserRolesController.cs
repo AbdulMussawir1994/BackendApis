@@ -26,7 +26,8 @@ namespace BackendApis.Controllers
         [HttpGet("GetAllRoles")]
         public async Task<ActionResult> GetAllRoles() => Ok(await _roleUserService.GetAllRolesAsync());
 
-        [AllowAnonymous]
+        // [AllowAnonymous]
+        [Authorize]
         [HttpPost("CreateRole")]
         public async Task<ActionResult> CreateRole([FromBody] CreateRoleViewModel model, CancellationToken cancellationToken)
         {
