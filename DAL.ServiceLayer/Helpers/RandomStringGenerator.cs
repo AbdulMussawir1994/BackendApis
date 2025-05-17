@@ -11,7 +11,7 @@ public static class RandomStringGenerator
     private static readonly char[] Base64Chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".ToCharArray();
 
-    public static string GenerateDeviceId(int length = 32)
+    public static string GenerateDeviceId(int length = 200)
     {
         return GenerateRandomString(length, AlphanumericChars);
     }

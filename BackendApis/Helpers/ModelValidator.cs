@@ -40,7 +40,7 @@ public class LoginViewModelValidator : AbstractValidator<LoginViewModel>
     }
 }
 
-//PasswordViewModelValidator
+// ✅ PasswordViewModelValidator
 public class PasswordViewModelValidator : AbstractValidator<PasswordViewModel>
 {
     public PasswordViewModelValidator()
@@ -59,6 +59,7 @@ public class PasswordViewModelValidator : AbstractValidator<PasswordViewModel>
     }
 }
 
+// ✅ CreateEmployeeValidator
 public class CreateEmployeeValidator : AbstractValidator<CreateEmployeeViewModel>
 {
     private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".pdf" };
@@ -104,6 +105,7 @@ public class CreateEmployeeValidator : AbstractValidator<CreateEmployeeViewModel
         file.Length <= MaxFileSize;
 }
 
+// ✅ UpdateEmployeeValidator
 public class UpdateEmployeeValidator : AbstractValidator<UpdateEmployeeViewModel>
 {
     private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".pdf" };

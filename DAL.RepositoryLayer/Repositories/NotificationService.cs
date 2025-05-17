@@ -34,7 +34,7 @@ namespace DAL.RepositoryLayer.Repositories
 
             var result = await _notificationDbAccess.CreateNotificationAsync(model);
 
-            return result.Status.IsSuccess
+            return result
                 ? response.SetSuccess("SUCCESS-200", "Notification created successfully.", true)
                 : response.SetError("ERR-500", "Failed to create notification.", false);
         }
