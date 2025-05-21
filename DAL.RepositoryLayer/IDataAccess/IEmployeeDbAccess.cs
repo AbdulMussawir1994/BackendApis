@@ -13,6 +13,7 @@ namespace DAL.RepositoryLayer.IDataAccess
         IQueryable<GetEmployeeDto> GetEmployees(ViewEmployeeModel model);
         IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerable(ViewEmployeeModel model);
         Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken);
+        Task<MobileResponse<string>> UpdateEmployeeAsync(UpdateEmployeeViewModel model, CancellationToken cancellationToken);
         Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken);
         Task<GetEmployeeDto?> GetEmployeeById(EmployeeIdViewModel model, CancellationToken cancellationToken);
         Task<bool> PatchEmployee(EmployeeByIdUpdateViewModel model, CancellationToken cancellationToken);

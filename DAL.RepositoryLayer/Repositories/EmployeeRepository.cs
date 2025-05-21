@@ -112,8 +112,8 @@ namespace DAL.RepositoryLayer.Repositories
                 return response.SetError("ERR-1001", "Invalid application user ID.", false);
             }
 
-            var result = await _employeeDbAccess.UpdateEmployee(model, cancellationToken);
-            return result
+            var result = await _employeeDbAccess.UpdateEmployeeAsync(model, cancellationToken);
+            return result.Status.IsSuccess
                 ? response.SetSuccess("SUCCESS-200", "Employee updated successfully.", true)
                 : response.SetError("ERR-500", "Failed to update employee.", false);
         }

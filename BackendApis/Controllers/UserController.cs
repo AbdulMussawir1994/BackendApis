@@ -12,8 +12,8 @@ using System.Security.Claims;
 namespace BackendApis.Controllers
 {
     [ApiController]
-    //[Authorize]
-    //   [AllowAnonymous]
+    // [Authorize]
+    [AllowAnonymous]
     [ApiVersion("2.0")]
     [EnableRateLimiting("TokenLimiter")]
     [Route("api/v{version:apiVersion}/[controller]")]
@@ -130,7 +130,7 @@ namespace BackendApis.Controllers
             return Ok(result);
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("GetUsers")]
         public MobileResponse<IEnumerable<GetUsersDto>> GetUsers()
         {
