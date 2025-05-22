@@ -8,6 +8,7 @@ using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Globalization;
 using System.Text.Json;
 
@@ -340,56 +341,56 @@ namespace DAL.RepositoryLayer.DataAccess
             var folder = DateTime.UtcNow.ToString("yyyy/MM", CultureInfo.InvariantCulture);
 
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-            // Update basic employee info
-            employee.Name = model.Name?.Trim();
-            employee.Age = model.Age;
-            employee.Salary = model.Salary;
-            employee.ApplicationUserId = model.ApplicationUserId;
-            employee.UpdatedDate = DateTime.UtcNow;
-
-            // Handle CV upload
-            if (model.CV != null)
+            try
             {
-                var cvResult = await _fileUtility.SaveFileInternalAsync(model.CV, folder);
-                if (!cvResult.Status.IsSuccess)
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return response.SetError("ERR-400", $"CV Upload Failed: {cvResult.Status.StatusMessage}", null);
-                }
-                employee.CvUrl = cvResult.Content;
-            }
+                // Update basic employee info
+                employee.Name = model.Name?.Trim();
+                employee.Age = model.Age;
+                employee.Salary = model.Salary;
+                employee.ApplicationUserId = model.ApplicationUserId;
+                employee.UpdatedDate = DateTime.UtcNow;
 
-            // Handle Image upload
-            if (model.Image != null)
-            {
-                var imageResult = await _fileUtility.UploadImageAndConvertToBase64Async(
-                    new UploadPhysicalImageViewModel { ImageFile = model.Image });
-
-                if (!imageResult.Status.IsSuccess || imageResult.Content == null)
+                // Handle CV upload
+                if (model.CV != null)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return response.SetError("ERR-400", $"Image Upload Failed: {imageResult.Status.StatusMessage}", null);
+                    var cvResult = await _fileUtility.SaveFileInternalAsync(model.CV, folder);
+                    if (!cvResult.Status.IsSuccess)
+                        return await RollbackWithErrorAsync(transaction, response, "ERR-400", $"CV Upload Failed: {cvResult.Status.StatusMessage}");
+
+                    employee.CvUrl = cvResult.Content;
                 }
 
-                employee.ImageUrl = imageResult.Content switch
+                // Handle Image upload
+                if (model.Image != null)
                 {
-                    string str => str,
-                    _ => JsonSerializer.Deserialize<Base64FileResult>(
-                            JsonSerializer.Serialize(imageResult.Content))?.Base64 ?? string.Empty
-                };
+                    var imageResult = await _fileUtility.UploadImageAndConvertToBase64Async(
+                        new UploadPhysicalImageViewModel { ImageFile = model.Image });
+
+                    if (!imageResult.Status.IsSuccess || imageResult.Content == null)
+                        return await RollbackWithErrorAsync(transaction, response, "ERR-400", $"Image Upload Failed: {imageResult.Status.StatusMessage}");
+
+                    employee.ImageUrl = imageResult.Content switch
+                    {
+                        string str => str,
+                        _ => JsonSerializer.Deserialize<Base64FileResult>(
+                                JsonSerializer.Serialize(imageResult.Content))?.Base64 ?? string.Empty
+                    };
+                }
+
+                _db.Employees.Update(employee);
+                var saveResult = await _db.SaveChangesAsync(cancellationToken);
+
+                if (saveResult == 0)
+                    return await RollbackWithErrorAsync(transaction, response, "ERR-500", "Failed to update employee in database");
+
+                await transaction.CommitAsync(cancellationToken);
+                return response.SetSuccess("SUCCESS-200", "Employee updated successfully", null);
             }
-
-            _db.Employees.Update(employee);
-            var saveResult = await _db.SaveChangesAsync(cancellationToken);
-
-            if (saveResult == 0)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return response.SetError("ERR-500", "Failed to update employee in database", null);
+                return response.SetError("ERR-500", "An unexpected error occurred", null);
             }
-
-            await transaction.CommitAsync(cancellationToken);
-            return response.SetSuccess("SUCCESS-200", "Employee updated successfully", null);
         }
 
         public async Task<bool> DeleteEmployee(EmployeeIdViewModel model, CancellationToken cancellationToken)
@@ -472,6 +473,11 @@ namespace DAL.RepositoryLayer.DataAccess
                 .ToListAsync(cancellationToken);
         }
 
+        private async Task<MobileResponse<string>> RollbackWithErrorAsync(IDbContextTransaction transaction, MobileResponse<string> response, string errorCode, string errorMessage)
+        {
+            await transaction.RollbackAsync();
+            return response.SetError(errorCode, errorMessage, null);
+        }
 
     }
 }
