@@ -13,7 +13,7 @@ namespace BackendApis.Controllers
 {
     [ApiController]
     // [Authorize]
-    [AllowAnonymous]
+    // [AllowAnonymous]
     [ApiVersion("2.0")]
     [EnableRateLimiting("TokenLimiter")]
     [Route("api/v{version:apiVersion}/[controller]")]
