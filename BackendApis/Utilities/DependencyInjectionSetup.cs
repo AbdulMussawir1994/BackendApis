@@ -148,7 +148,8 @@ public static class DependencyInjectionSetup
         // Register custom encryption utility as Singleton
         services.AddSingleton<AesGcmEncryption>();
         services.AddSingleton<ConfigHandler>();
-        services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddleware>();
+        //   services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationMiddleware>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, CoreAuthorizationMiddleware>();
 
         // Interceptors
         //  services.AddScoped<AuditableEntitySaveChangesInterceptor>();
@@ -254,7 +255,7 @@ public static class DependencyInjectionSetup
 
                 return RateLimitPartition.GetFixedWindowLimiter(identityKey, _ => new FixedWindowRateLimiterOptions
                 {
-                    PermitLimit = 20,
+                    PermitLimit = 25,
                     Window = TimeSpan.FromSeconds(30),
                     QueueLimit = 2,
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -265,14 +266,14 @@ public static class DependencyInjectionSetup
 
             options.OnRejected = async (context, token) =>
             {
-                context.HttpContext.Response.Headers["Retry-After"] = "60";
+                context.HttpContext.Response.Headers["Retry-After"] = "30";
                 context.HttpContext.Response.Headers["X-RateLimit-Exceeded"] = "true";
                 context.HttpContext.Response.ContentType = "application/json";
                 var errorResponse = new
                 {
                     status = new
                     {
-                        Code = 429,
+                        Code = 429, // Status429TooManyRequests
                         IsSuccess = false,
                         StatusMessage = "Too many requests. Please try again after 30 seconds.",
                         RetryAfterSeconds = 30

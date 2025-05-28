@@ -115,7 +115,8 @@ try
     app.UseRateLimiter();
 
     //// 7. Global Exception Handling / Custom middleware (e.g., exception handling, request context)
-    app.UseEnterpriseCustomMiddleware();
+    //  app.UseEnterpriseCustomMiddleware();
+    app.UseCoreCustomMiddleware();
     //app.UseMiddleware<RateLimitingMiddleware>();
 
     //// 8. Authentication & Authorization

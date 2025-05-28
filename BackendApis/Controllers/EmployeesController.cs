@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendApis.Controllers
 {
     [ApiController]
-    //[Authorize]
-    [AllowAnonymous]
+    [Authorize]
+    // [AllowAnonymous]
     [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class EmployeesController : WebBaseController
@@ -23,8 +23,8 @@ namespace BackendApis.Controllers
             _employeeLayer = employeeRepository;
         }
 
+        //   [Authorize(Roles = "Admin")]
         [HttpPost("Enumerable-List")]
-        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> GetEmployees([FromBody] ViewEmployeeModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
