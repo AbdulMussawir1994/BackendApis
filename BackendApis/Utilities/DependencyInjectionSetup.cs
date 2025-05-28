@@ -250,12 +250,12 @@ public static class DependencyInjectionSetup
                 var isAuthenticated = httpContext.User.Identity?.IsAuthenticated ?? false;
                 var identityKey = isAuthenticated
                     ? httpContext.User.Identity?.Name ?? $"user-{Guid.NewGuid()}"
-                    : httpContext.Connection.RemoteIpAddress?.ToString() ?? $"anon-{Guid.NewGuid()}";
+                    : httpContext.Connection.RemoteIpAddress?.ToString() ?? $"anonymous-{Guid.NewGuid()}";
 
                 return RateLimitPartition.GetFixedWindowLimiter(identityKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 20,
-                    Window = TimeSpan.FromMinutes(1),
+                    Window = TimeSpan.FromSeconds(30),
                     QueueLimit = 2,
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                 });
@@ -266,7 +266,23 @@ public static class DependencyInjectionSetup
             options.OnRejected = async (context, token) =>
             {
                 context.HttpContext.Response.Headers["Retry-After"] = "60";
-                await context.HttpContext.Response.WriteAsync("⛔ Too many requests. Please try again later.", token);
+                context.HttpContext.Response.Headers["X-RateLimit-Exceeded"] = "true";
+                context.HttpContext.Response.ContentType = "application/json";
+
+                var errorResponse = new
+                {
+                    Status = 429,
+                    Error = "TooManyRequests",
+                    Message = "Too many requests. Please try after 30 seconds later.",
+                    RetryAfterSeconds = 30
+                };
+
+                await JsonSerializer.SerializeAsync(
+                    context.HttpContext.Response.Body,
+                    errorResponse,
+                    cancellationToken: token);
+
+                await context.HttpContext.Response.CompleteAsync();
             };
         });
 
