@@ -268,21 +268,24 @@ public static class DependencyInjectionSetup
                 context.HttpContext.Response.Headers["Retry-After"] = "60";
                 context.HttpContext.Response.Headers["X-RateLimit-Exceeded"] = "true";
                 context.HttpContext.Response.ContentType = "application/json";
-
                 var errorResponse = new
                 {
-                    Status = 429,
-                    Error = "TooManyRequests",
-                    Message = "Too many requests. Please try after 30 seconds later.",
-                    RetryAfterSeconds = 30
+                    status = new
+                    {
+                        Code = 429,
+                        IsSuccess = false,
+                        StatusMessage = "Too many requests. Please try again after 30 seconds.",
+                        RetryAfterSeconds = 30
+                    }
                 };
 
                 await JsonSerializer.SerializeAsync(
                     context.HttpContext.Response.Body,
                     errorResponse,
-                    cancellationToken: token);
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase },
+                    token).ConfigureAwait(false);
 
-                await context.HttpContext.Response.CompleteAsync();
+                await context.HttpContext.Response.CompleteAsync().ConfigureAwait(false);
             };
         });
 
