@@ -419,6 +419,7 @@ public static class DependencyInjectionSetup
         services.ConfigureOptions<ConfigureSwaggerOptions>();
         //  services.AddQuartzJobs();
         services.AddEndpointsApiExplorer();
+        services.AddMemoryCache();
         services.AddResponseCaching();
         services.AddHttpContextAccessor();
         services.AddAuthorization();

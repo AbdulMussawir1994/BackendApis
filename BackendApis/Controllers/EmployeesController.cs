@@ -33,6 +33,7 @@ namespace BackendApis.Controllers
         }
 
         [HttpPost("IEnumerable-List")]
+        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult> GetEmployeesPagination([FromBody] ViewEmployeeModel model, CancellationToken cancellationToken)
         {
             var validation = this.ModelValidator(model);
