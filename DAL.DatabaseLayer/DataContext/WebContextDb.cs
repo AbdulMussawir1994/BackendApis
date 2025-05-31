@@ -3,13 +3,12 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using System.Diagnostics;
 
 namespace DAL.DatabaseLayer.DataContext;
 
 public class WebContextDb : IdentityDbContext<AppUser>
 {
-    private readonly StreamWriter _logStream = new StreamWriter("myLog.txt", append: true);
+    //  private readonly StreamWriter _logStream = new StreamWriter("myLog.txt", append: true);
 
     public WebContextDb(DbContextOptions<WebContextDb> options) : base(options)
     {
@@ -22,12 +21,12 @@ public class WebContextDb : IdentityDbContext<AppUser>
         }
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.LogTo(_logStream.WriteLine);
-        optionsBuilder.LogTo(Console.WriteLine).EnableSensitiveDataLogging();
-        optionsBuilder.LogTo(mes => Debug.WriteLine(mes));
-    }
+    //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    //{
+    //    optionsBuilder.LogTo(_logStream.WriteLine);
+    //    optionsBuilder.LogTo(Console.WriteLine).EnableSensitiveDataLogging();
+    //    optionsBuilder.LogTo(mes => Debug.WriteLine(mes));
+    //}
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

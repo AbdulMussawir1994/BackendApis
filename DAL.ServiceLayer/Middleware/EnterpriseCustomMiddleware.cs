@@ -123,6 +123,11 @@ public class EnterpriseCustomMiddleware
     {
         _configHandler.LogId = Guid.NewGuid().ToString();
         _configHandler.RequestedDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+        ////  _configHandler.LogId = Guid.NewGuid().ToString();
+        //_configHandler.LogId = Guid.CreateVersion7().ToString();
+        ////   _configHandler.LogId = Ulid.NewUlid().ToString();
+        //_configHandler.RequestedDateTime = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
 
     private async Task<bool> TryDecryptRequest(HttpContext context)
