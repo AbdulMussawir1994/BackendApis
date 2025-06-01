@@ -21,7 +21,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Polly;
 using Quartz;
-using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -187,12 +186,21 @@ public static class DependencyInjectionSetup
         services.AddHttpClient(); // Required for default HttpClient
 
         // 🔁 Polly Resilience & Circuit Breaker
-        services.AddHttpClient("ResilientClient", client =>
-        {
-            client.BaseAddress = new Uri("https://example.com");
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        })
-        .AddPolicyHandler(PollyResilienceHelper.GetResiliencePipeline());
+        //services.AddHttpClient("ResilientClient", client =>
+        //{
+        //    client.BaseAddress = new Uri("https://example.com");
+        //    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        //})
+        //.AddPolicyHandler(PollyResilienceHelper.GetResiliencePipeline());
+
+
+        //// Register HttpClient with Polly from the registry
+        //services.AddHttpClient("MyPollyClient", client =>
+        //{
+        //    client.BaseAddress = new Uri("https://api.example.com/");
+        //})
+        //.AddPolicyHandler(PollyPolicyRegistry.GetRetryPolicy())
+        //.AddPolicyHandler(PollyPolicyRegistry.GetCircuitBreakerPolicy());
 
 
         //services.AddResiliencePipeline("GlobalHttpPolicy", builder =>

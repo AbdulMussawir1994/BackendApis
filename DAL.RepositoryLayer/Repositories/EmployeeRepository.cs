@@ -14,12 +14,27 @@ namespace DAL.RepositoryLayer.Repositories
     {
         private readonly IEmployeeDbAccess _employeeDbAccess;
         private readonly ConfigHandler _configHandler;
+        //private readonly HttpClient _httpClient;
 
-        public EmployeeRepository(ConfigHandler configHandler, IEmployeeDbAccess employeeDbAccess)
+
+        public EmployeeRepository(ConfigHandler configHandler, IEmployeeDbAccess employeeDbAccess, IHttpClientFactory httpClientFactory)
         {
             _configHandler = configHandler;
             _employeeDbAccess = employeeDbAccess;
+            //   _httpClient = httpClientFactory.CreateClient("MyPollyClient");
         }
+
+        //public async Task<string> GetOrdersAsync()
+        //{
+        //    var fallbackPolicy = PollyPolicyRegistry
+
+        //    return await fallbackPolicy.ExecuteAsync(async () =>
+        //    {
+        //        var response = await _httpClient.GetAsync("api/orders");
+        //        response.EnsureSuccessStatusCode();
+        //        return await response.Content.ReadAsStringAsync();
+        //    });
+        //}
 
         public Task<MobileResponse<IQueryable<GetEmployeeDto>>> GetEmployeesListAsync(ViewEmployeeModel model)
         {
