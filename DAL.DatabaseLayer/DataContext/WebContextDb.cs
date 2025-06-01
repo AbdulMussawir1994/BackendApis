@@ -53,8 +53,14 @@ public class WebContextDb : IdentityDbContext<AppUser>
         //builder.Entity<AppUser>()
         //   .HasQueryFilter(user => user.IsActive);
 
-        //builder.Entity<Employee>()
-        //    .HasQueryFilter(emp => emp.IsActive);
+        builder.Entity<Employee>(entity =>
+        {
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)      // Client-side EF default
+                .IsRequired();
+
+            entity.HasQueryFilter(e => e.IsActive);
+        });
 
         builder.Entity<UserNotification>(entity =>
         {

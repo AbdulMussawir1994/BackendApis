@@ -8,7 +8,7 @@ namespace DAL.DatabaseLayer.Models;
 public class Employee
 {
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Id { get; set; } = Guid.NewGuid().ToString().ToLower();
 
     [Required, MaxLength(100)]
     public string Name { get; set; } = string.Empty;

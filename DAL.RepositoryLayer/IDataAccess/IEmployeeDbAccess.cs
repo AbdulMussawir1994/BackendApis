@@ -2,6 +2,7 @@
 using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
 using DAL.ServiceLayer.Models;
+using System.Collections.Frozen;
 
 namespace DAL.RepositoryLayer.IDataAccess
 {
@@ -20,6 +21,7 @@ namespace DAL.RepositoryLayer.IDataAccess
         Task<EmployeeListResponse> GetEmployeesCount(ViewEmployeeModel model, CancellationToken cancellationToken);
         Task<string> GetEmployeeFilePathByIdAsync(DownloadFileByIdViewModel model);
         Task<Dictionary<string, List<GetEmployeeDto>>> GetAllEmployeesAsync();
+        Task<FrozenDictionary<string, List<GetEmployeeDto>>> GetAllEmployeesAsync1();
         Task<List<GetEmployeeDto>> GetEmployeesKeysetAsync(Guid? lastId, int pageSize, CancellationToken cancellationToken);
     }
 }

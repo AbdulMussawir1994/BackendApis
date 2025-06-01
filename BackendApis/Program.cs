@@ -25,17 +25,17 @@ try
 
     //Code for Migration--->
 
-    //   var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    // var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     //   var LogsString = builder.Configuration.GetConnectionString("LogsConnection");
 
-    //   builder.Services.AddDbContext<WebContext>(options =>
-    //       options.UseSqlServer(connectionString, sqlOptions =>
-    //       {
-    //           sqlOptions.EnableRetryOnFailure(
-    //               maxRetryCount: 5,
-    //               maxRetryDelay: TimeSpan.FromSeconds(10),
-    //               errorNumbersToAdd: null);
-    //       }));
+    //builder.Services.AddDbContext<WebContextDb>(options =>
+    //    options.UseSqlServer(connectionString, sqlOptions =>
+    //    {
+    //        sqlOptions.EnableRetryOnFailure(
+    //            maxRetryCount: 5,
+    //            maxRetryDelay: TimeSpan.FromSeconds(10),
+    //            errorNumbersToAdd: null);
+    //    }));
 
     //   builder.Services.AddDbContext<LogsContext>(options =>
     //options.UseSqlServer(LogsString, sqlOptions =>

@@ -2,6 +2,7 @@
 using DAL.DatabaseLayer.ViewModels;
 using DAL.DatabaseLayer.ViewModels.EmployeeModels;
 using DAL.ServiceLayer.Models;
+using System.Collections.Frozen;
 
 namespace DAL.RepositoryLayer.IRepositories
 {
@@ -18,6 +19,7 @@ namespace DAL.RepositoryLayer.IRepositories
         Task<MobileResponse<EmployeeListResponse>> GetEmployeesPaginationAsync(ViewEmployeeModel model, CancellationToken cancellationToken);
         Task<MobileResponse<string>> GetEmployeeFilePath(DownloadFileByIdViewModel model);
         Task<MobileResponse<Dictionary<string, List<GetEmployeeDto>>>> GetAllEmployeesAsync();
+        Task<MobileResponse<FrozenDictionary<string, List<GetEmployeeDto>>>> GetAllEmployeesAsync1();
         Task<MobileResponse<object>> GetEmployeesKeysetAsync(KeysetPaginationRequest model, CancellationToken cancellationToken);
     }
 }

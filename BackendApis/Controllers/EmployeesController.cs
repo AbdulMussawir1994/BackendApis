@@ -125,8 +125,12 @@ namespace BackendApis.Controllers
                 : Ok(await _employeeLayer.PatchEmployeeAsync(model, cancellationToken));
         }
 
-        [HttpGet("GetAllEmployees")]
+        [HttpGet("Dictionery")]
         public async Task<ActionResult> GetAllEmployees() => Ok(await _employeeLayer.GetAllEmployeesAsync());
+
+
+        [HttpGet("FrozenDictionery")]
+        public async Task<ActionResult> GetAllEmployees1() => Ok(await _employeeLayer.GetAllEmployeesAsync1());
 
         [HttpGet("keyset-pagination")]
         public async Task<IActionResult> GetEmployeesKeyset([FromQuery] KeysetPaginationRequest model, CancellationToken cancellationToken = default)

@@ -9,6 +9,7 @@ using DAL.ServiceLayer.Utilities;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Text.Json;
 
@@ -46,6 +47,29 @@ namespace DAL.RepositoryLayer.DataAccess
                     }).ToList()
                 })
                 .ToDictionaryAsync(group => group.Name, group => group.Employees);
+        }
+
+        public async Task<FrozenDictionary<string, List<GetEmployeeDto>>> GetAllEmployeesAsync1()
+        {
+            var dictionary = await _db.Employees
+                .AsNoTracking()
+                .GroupBy(e => e.Name)
+                .Select(group => new
+                {
+                    Name = group.Key,
+                    Employees = group.Select(e => new GetEmployeeDto
+                    {
+                        Id = e.Id.ToString(),
+                        EmployeeName = e.Name,
+                        Age = e.Age,
+                        Salary = e.Salary,
+                        Image = e.ImageUrl,
+                        Cv = e.CvUrl,
+                    }).ToList()
+                })
+                .ToDictionaryAsync(group => group.Name, group => group.Employees);
+
+            return dictionary.ToFrozenDictionary();
         }
 
         public async Task<MobileResponse<bool>> CreateEmployee(CreateEmployeeViewModel model, CancellationToken cancellationToken)

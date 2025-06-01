@@ -6,6 +6,7 @@ using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Frozen;
 
 namespace DAL.RepositoryLayer.Repositories
 {
@@ -185,6 +186,20 @@ namespace DAL.RepositoryLayer.Repositories
             }
 
             return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", groupedEmployees);
+        }
+
+        public async Task<MobileResponse<FrozenDictionary<string, List<GetEmployeeDto>>>> GetAllEmployeesAsync1()
+        {
+            // Initialize response with params for cleaner error handling
+            var response = new MobileResponse<FrozenDictionary<string, List<GetEmployeeDto>>>(_configHandler, "Employee");
+
+            var groupedEmployees = await _employeeDbAccess.GetAllEmployeesAsync1();
+
+            return groupedEmployees switch
+            {
+                null or { Count: 0 } => response.SetError("ERR-404", "No employees found.", FrozenDictionary<string, List<GetEmployeeDto>>.Empty),
+                _ => response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", groupedEmployees)
+            };
         }
 
         public async Task<MobileResponse<object>> GetEmployeesKeysetAsync(KeysetPaginationRequest model, CancellationToken cancellationToken)
