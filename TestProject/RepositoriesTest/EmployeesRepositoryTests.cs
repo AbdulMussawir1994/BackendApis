@@ -5,6 +5,7 @@ using DAL.RepositoryLayer.Repositories;
 using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Moq;
 
@@ -22,11 +23,12 @@ public class EmployeesRepositoryTests
 
         var configMock = new Mock<IConfiguration>();
         var httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        var redisCache = new Mock<IDistributedCache>();
         var httpClient = new HttpClient();
 
         _configHandler = new ConfigHandler(configMock.Object, httpClient, httpClientFactoryMock.Object);
 
-        _repository = new EmployeeRepository(_configHandler, _dbMock.Object);
+        _repository = new EmployeeRepository(_configHandler, _dbMock.Object, httpClientFactoryMock.Object, redisCache.Object);
     }
 
     [Fact]

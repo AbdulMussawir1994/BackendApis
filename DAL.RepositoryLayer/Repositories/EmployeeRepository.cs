@@ -6,7 +6,11 @@ using DAL.RepositoryLayer.IRepositories;
 using DAL.ServiceLayer.Models;
 using DAL.ServiceLayer.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using System.Collections.Frozen;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DAL.RepositoryLayer.Repositories
 {
@@ -14,13 +18,16 @@ namespace DAL.RepositoryLayer.Repositories
     {
         private readonly IEmployeeDbAccess _employeeDbAccess;
         private readonly ConfigHandler _configHandler;
+        private readonly IDistributedCache _distributedCache;
         //private readonly HttpClient _httpClient;
 
 
-        public EmployeeRepository(ConfigHandler configHandler, IEmployeeDbAccess employeeDbAccess, IHttpClientFactory httpClientFactory)
+        public EmployeeRepository(ConfigHandler configHandler, IEmployeeDbAccess employeeDbAccess,
+                                                            IHttpClientFactory httpClientFactory, IDistributedCache distributedCache)
         {
             _configHandler = configHandler;
             _employeeDbAccess = employeeDbAccess;
+            _distributedCache = distributedCache;
             //   _httpClient = httpClientFactory.CreateClient("MyPollyClient");
         }
 
@@ -60,11 +67,40 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<EmployeeListResponse>(_configHandler, "employee");
 
-            var result = await _employeeDbAccess.GetEmployeesCount(model, cancellationToken);
+            string redisKey = _configHandler._config.GetValue<string>("RedisConnection:KeyName");
 
-            return result.List.Any()
-                ? response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", result)
-                : response.SetError("ERR-404", "No employees found.", new EmployeeListResponse());
+            string? cachedData = await _distributedCache.GetStringAsync(redisKey, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(cachedData))
+            {
+                var cachedResult = JsonSerializer.Deserialize<EmployeeListResponse>(cachedData, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return response.SetSuccess("SUCCESS-200", "Employee list fetched from Redis.", cachedResult);
+            }
+
+            var employeeResult = await _employeeDbAccess.GetEmployeesCount(model, cancellationToken);
+
+            if (!employeeResult.List.Any())
+                return response.SetError("ERR-404", "No employees found.", new EmployeeListResponse());
+
+            var serialized = JsonSerializer.Serialize(employeeResult, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                ReferenceHandler = ReferenceHandler.IgnoreCycles,
+                WriteIndented = false
+            });
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromMinutes(1),
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(6)
+            };
+
+            await _distributedCache.SetStringAsync(redisKey, serialized, cacheOptions, cancellationToken);
+
+            return response.SetSuccess("SUCCESS-200", "Employee list fetched successfully.", employeeResult);
         }
 
         public async Task<MobileResponse<IAsyncEnumerable<GetEmployeeDto>>> GetEmployeesListAsync2(ViewEmployeeModel model)
@@ -86,6 +122,8 @@ namespace DAL.RepositoryLayer.Repositories
         {
             var response = new MobileResponse<bool>(_configHandler, "employee");
 
+            string redisKey = _configHandler._config.GetValue<string>("RedisConnection:KeyName");
+
             // Check if ApplicationUserId is "string" or not a valid GUID
             if (!Guid.TryParse(model.ApplicationUserId, out _))
             {
@@ -94,6 +132,8 @@ namespace DAL.RepositoryLayer.Repositories
 
             //var result = await _employeeDbAccess.CreateEmployee(model, cancellationToken);
             var result = await _employeeDbAccess.CreateEmployee1(model, cancellationToken);
+
+            await _distributedCache.RemoveAsync(redisKey);
 
             return result.Status.IsSuccess
                 ? response.SetSuccess("SUCCESS-200", "Employee created successfully.", true)

@@ -42,6 +42,7 @@ public static class DependencyInjectionSetup
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                 options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
                 options.JsonSerializerOptions.WriteIndented = false;
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; // ✅ Add this line
             });
 
         //🔄 API Versioning
@@ -392,6 +393,22 @@ public static class DependencyInjectionSetup
                        .AllowAnyMethod();
             });
         });
+
+        //Enterprise Level
+        //services.AddCors(options =>
+        //{
+        //    options.AddPolicy("NewPolicy", policy =>
+        //    {
+        //        policy.WithOrigins(
+        //            "http",
+        //            "Http"
+        //            )
+        //        .WithMethods("GET", "POST", "PUT")
+        //        .WithHeaders("Content-Type", "Authorization")
+        //        .AllowCredentials() //Won't work with AllowAnyOrigin()
+        //        .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+        //    });
+        //});
 
         //📦 Mapster Mapping
         TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());

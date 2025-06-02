@@ -71,8 +71,8 @@ try
     // 🔹 Redis Caching
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration = configuration["RedisConnection:LocalHost"];
-        options.InstanceName = configuration["RedisConnection:InstanceName"];
+        options.Configuration = configuration.GetSection("RedisConnection").GetValue<string>("LocalHost");
+        options.InstanceName = configuration.GetSection("RedisConnection").GetValue<string>("InstanceName");
     });
 
     // Load configuration from appsettings.json
