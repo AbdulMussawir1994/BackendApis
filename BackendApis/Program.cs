@@ -79,6 +79,8 @@ try
     builder.Services.AddReverseProxy()
         .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+    //builder.Services.AddOpenTelemetry()
+
     // 🔹 Register App Services
     builder.Services.RegisterServices(configuration);
     builder.Services.AddEnterpriseIdentity(builder.Configuration);

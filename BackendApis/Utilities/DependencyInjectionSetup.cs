@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Polly;
@@ -448,6 +449,12 @@ public static class DependencyInjectionSetup
         services.AddResponseCaching();
         services.AddHttpContextAccessor();
         services.AddAuthorization();
+        services.AddResponseCompression(opt =>
+        {
+            opt.EnableForHttps = true;
+            opt.Providers.Add<GzipCompressionProvider>();
+        });
+
         //services.AddAuthorization(options =>
         //{
         //    options.AddPolicy("AdminPolicy", policy =>

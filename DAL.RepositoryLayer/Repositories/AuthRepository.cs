@@ -32,10 +32,11 @@ namespace DAL.RepositoryLayer.Repositories
         private readonly IConfiguration _configuration;
         private readonly IDataBaseAccess _dataBaseAccess;
         private readonly IValidator<RegisterViewModel> _validator;
+        //private readonly IHttpClientFactory _httpClientFactory;
 
         public AuthRepository(ILogger<AuthRepository> logger, UserManager<AppUser> userManager,
                                                     AesGcmEncryption aesGcmEncryption, IConfiguration configuration,
-                                                    IDataBaseAccess dataBaseAccess, IValidator<RegisterViewModel> validator,
+                                                    IDataBaseAccess dataBaseAccess, IValidator<RegisterViewModel> validator, //IHttpClientFactory httpClientFactory,
                                                     ConfigHandler configHandler)
         {
             _logger = logger;
@@ -45,11 +46,14 @@ namespace DAL.RepositoryLayer.Repositories
             _dataBaseAccess = dataBaseAccess;
             _validator = validator;
             _configHandler = configHandler;
+            //   _httpClientFactory = httpClientFactory;
         }
 
         public MobileResponse<IEnumerable<GetUsersDto>> GetUsersAsync()
         {
             var response = new MobileResponse<IEnumerable<GetUsersDto>>(_configHandler, "user");
+
+            //   var httpClient = _httpClientFactory.CreateClient();
 
             var users = _userManager.Users
                 .AsNoTracking()
