@@ -452,6 +452,7 @@ public static class DependencyInjectionSetup
         services.AddResponseCompression(opt =>
         {
             opt.EnableForHttps = true;
+            opt.Providers.Add<BrotliCompressionProvider>();
             opt.Providers.Add<GzipCompressionProvider>();
         });
 
