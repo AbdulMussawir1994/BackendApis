@@ -189,6 +189,9 @@ namespace DAL.DatabaseLayer.Migrations
 
                     b.HasIndex("ApplicationUserId");
 
+                    b.HasIndex("Salary")
+                        .HasDatabaseName("IX_Employee_Salary");
+
                     b.ToTable("Employees");
                 });
 

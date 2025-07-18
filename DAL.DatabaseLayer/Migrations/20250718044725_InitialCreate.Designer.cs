@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.DatabaseLayer.Migrations
 {
     [DbContext(typeof(WebContextDb))]
-    [Migration("20250601102238_InitialCreate")]
+    [Migration("20250718044725_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -191,6 +191,9 @@ namespace DAL.DatabaseLayer.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationUserId");
+
+                    b.HasIndex("Salary")
+                        .HasDatabaseName("IX_Employee_Salary");
 
                     b.ToTable("Employees");
                 });

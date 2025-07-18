@@ -42,12 +42,12 @@ public class CoreCustomMiddleware
     public async Task Invoke(HttpContext context)
     {
         SetInitialContext(context);
-        string requestLog = string.Empty;
         var userLogsHelper = new AppUserLogsHelper(_configHandler);
+        string requestLog = string.Empty;
 
         try
         {
-            if (context.GetEndpoint()?.Metadata?.GetMetadata<IAllowAnonymous>() is null)
+            if (!IsAnonymousAllowed(context))
             {
                 var token = DecryptToken(context);
                 if (string.IsNullOrEmpty(token))
@@ -74,7 +74,6 @@ public class CoreCustomMiddleware
 
             context.Response.OnStarting(() =>
             {
-                //context.Response.Headers["Authorization"] = string.Empty;
                 context.Response.Headers["EncryptedKey"] = _encryptedKey;
                 return Task.CompletedTask;
             });
@@ -87,6 +86,11 @@ public class CoreCustomMiddleware
             _logger.LogError(ex, "Exception caught in middleware");
             await HandleExceptionAsync(context, ex);
         }
+    }
+
+    private static bool IsAnonymousAllowed(HttpContext context)
+    {
+        return context.GetEndpoint()?.Metadata?.GetMetadata<IAllowAnonymous>() != null;
     }
 
     private async Task SaveRequestLog(HttpContext context, string requestLog, string responseBody, AppUserLogsHelper userLogsHelper)

@@ -317,6 +317,11 @@ namespace DAL.DatabaseLayer.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Employee_Salary",
+                table: "Employees",
+                column: "Salary");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Employees_ApplicationUserId",
                 table: "Employees",
                 column: "ApplicationUserId");

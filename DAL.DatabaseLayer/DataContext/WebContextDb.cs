@@ -62,6 +62,17 @@ public class WebContextDb : IdentityDbContext<AppUser>
             entity.HasQueryFilter(e => e.IsActive);
         });
 
+        builder.Entity<Employee>()
+           .HasIndex(e => e.Salary)
+           .HasDatabaseName("IX_Employee_Salary"); // Optional: custom index name
+
+        //builder.Entity<Employee>()
+        //     .HasIndex(e => new { e.Salary, e.Age })
+        //     .IsDescending(true, false) // Salary DESC, Department ASC
+        //     .IncludeProperties(e => new { e.Name, e.Age })
+        //     .HasFilter("[Salary] > 50000")
+        //     .HasDatabaseName("IX_Employee_Advanced");
+
         builder.Entity<UserNotification>(entity =>
         {
             entity.Property(e => e.CreatedBy).HasMaxLength(450);
