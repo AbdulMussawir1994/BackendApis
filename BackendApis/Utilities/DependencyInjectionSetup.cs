@@ -143,6 +143,8 @@ public static class DependencyInjectionSetup
         services.AddScoped<IFilesServiceRepository, FilesServiceRepository>();
         services.AddScoped<IFileUtility, FileUtility>();
         services.AddScoped<INotificationDbAccess, NotificationDbAccess>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 
         services.AddScoped<CustomUserManager>();
 
