@@ -1,14 +1,14 @@
-﻿using DAL.RepositoryLayer.IRepositories;
-using Microsoft.EntityFrameworkCore;
+﻿using DAL.DatabaseLayer.DataContext;
+using DAL.RepositoryLayer.IRepositories;
 
 namespace DAL.RepositoryLayer.Repositories;
 
 public class UnitOfWork : IUnitOfWork
 {
-    private readonly DbContext _context;
+    private readonly WebContextDb _context;
     private readonly Dictionary<Type, object> _repositories = new();
 
-    public UnitOfWork(DbContext context)
+    public UnitOfWork(WebContextDb context)
     {
         _context = context;
     }
