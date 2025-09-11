@@ -9,7 +9,6 @@ using QRCoder;
 using SkiaSharp;
 
 namespace BackendApis.Controllers;
-
 [ApiController]
 [AllowAnonymous]
 [ApiVersion("2.0")]
@@ -102,22 +101,34 @@ public class QRCodeController : WebBaseController
     {
         using var qrGenerator = new QRCodeGenerator();
         using var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+
+        // 🔴 Change 1: Generate with RED foreground instead of black
         var qrCode = new PngByteQRCode(qrCodeData);
-        var qrBytes = qrCode.GetGraphic(20);
+        var qrBytes = qrCode.GetGraphic(
+            pixelsPerModule: 10, // smaller modules → smaller raw image
+            darkColorRgba: new byte[] { 222, 31, 82, 255 }, // dark red
+            lightColorRgba: new byte[] { 255, 255, 255, 255 } // white
+        );
 
         using var qrBitmap = SKBitmap.Decode(qrBytes);
-        using var surface = SKSurface.Create(new SKImageInfo(qrBitmap.Width, qrBitmap.Height));
+
+        // 🔴 Change 2: Force default size (e.g., 300x300 px)
+        int targetSize = 300;
+        using var resized = qrBitmap.Resize(new SKImageInfo(targetSize, targetSize), SKFilterQuality.High);
+
+        using var surface = SKSurface.Create(new SKImageInfo(targetSize, targetSize));
         var canvas = surface.Canvas;
 
         canvas.Clear(SKColors.White);
-        canvas.DrawBitmap(qrBitmap, 0, 0);
+        canvas.DrawBitmap(resized, 0, 0);
 
+        // Optional: embed logo
         if (!string.IsNullOrWhiteSpace(logoPath) && System.IO.File.Exists(logoPath))
         {
             using var logoBitmap = SKBitmap.Decode(logoPath);
-            int logoSize = qrBitmap.Width / 4; // 25%
-            int x = (qrBitmap.Width - logoSize) / 2;
-            int y = (qrBitmap.Height - logoSize) / 2;
+            int logoSize = targetSize / 4; // 25% of QR
+            int x = (targetSize - logoSize) / 2;
+            int y = (targetSize - logoSize) / 2;
             var destRect = new SKRect(x, y, x + logoSize, y + logoSize);
             canvas.DrawBitmap(logoBitmap, destRect);
         }
