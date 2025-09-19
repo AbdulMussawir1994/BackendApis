@@ -41,6 +41,12 @@ public class ViewEmployeeModel
     public required int PageNumber { get; set; } = 0;
 }
 
+public class ViewEmployeeWithLastIdModel
+{
+    public required int PageSize { get; set; } = 0;
+    public string LastId { get; set; } = string.Empty;
+}
+
 public class EmployeeListResponse
 {
     public IEnumerable<GetEmployeeDto> List { get; set; } = Enumerable.Empty<GetEmployeeDto>();

@@ -315,6 +315,64 @@ namespace DAL.RepositoryLayer.DataAccess
                 .AsAsyncEnumerable();
         }
 
+        public IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerableWithLastId(ViewEmployeeWithLastIdModel model)
+        {
+            if (model.PageSize <= 0)
+                return AsyncEnumerable.Empty<GetEmployeeDto>();
+
+            // Use empty string if lastId not provided (start from beginning)
+            var lastId = model.LastId ?? string.Empty;
+
+            return _db.Employees
+                .AsNoTrackingWithIdentityResolution()
+                .Where(e => e.IsActive && string.Compare(e.Id, lastId, StringComparison.Ordinal) > 0) // ✅ Safe string comparison
+                .Include(e => e.ApplicationUser)
+                .AsSplitQuery()
+                .OrderBy(e => e.Id) // ✅ Ensure ordering is lexicographically correct
+                .Take(model.PageSize)
+                .Select(e => new GetEmployeeDto
+                {
+                    Id = e.Id.ToLowerInvariant(), // ✅ Lowercase only once for consistency
+                    EmployeeName = e.Name ?? string.Empty,
+                    Age = e.Age,
+                    Salary = e.Salary,
+                    Image = e.ImageUrl ?? string.Empty,
+                    Cv = e.CvUrl ?? string.Empty,
+                    ApplicationUserId = e.ApplicationUserId,
+                    UserName = e.ApplicationUser.UserName ?? string.Empty
+                })
+                .AsAsyncEnumerable();
+        }
+
+        //public IAsyncEnumerable<GetEmployeeDto> GetEmployeesIAsyncEnumerableWithLastId(ViewEmployeeWithLastIdModel model)
+        //{
+        //    if (model.PageSize <= 0)
+        //        return AsyncEnumerable.Empty<GetEmployeeDto>();
+
+        //    // lastId is optional - use 0 to get first page
+        //    var lastId = model.LastId ?? "";
+
+        //    return _db.Employees
+        //        .AsNoTrackingWithIdentityResolution()
+        //        .Where(e => e.IsActive && e.Id > lastId) // ✅ Keyset pagination (no Skip)
+        //        .Include(e => e.ApplicationUser)
+        //        .AsSplitQuery()
+        //        .OrderBy(e => e.Id) // ✅ Order first for correct results
+        //        .Take(model.PageSize) // ✅ Fast seek
+        //        .Select(e => new GetEmployeeDto
+        //        {
+        //            Id = e.Id.ToString().ToLower(),
+        //            EmployeeName = e.Name ?? string.Empty,
+        //            Age = e.Age,
+        //            Salary = e.Salary,
+        //            Image = e.ImageUrl ?? string.Empty,
+        //            Cv = e.CvUrl ?? string.Empty,
+        //            ApplicationUserId = e.ApplicationUserId,
+        //            UserName = e.ApplicationUser.UserName ?? string.Empty
+        //        })
+        //        .AsAsyncEnumerable();
+        //}
+
         public async Task<bool> UpdateEmployee(UpdateEmployeeViewModel model, CancellationToken cancellationToken)
         {
             var employee = await _db.Employees
